@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>repo_llm Demo</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+  header{background:linear-gradient(135deg,#1e293b,#0f172a);border-bottom:1px solid #334155;padding:1.25rem 2rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
+  header h1{font-size:1.4rem;font-weight:700;color:#38bdf8}
+  header span{color:#64748b;font-size:.875rem}
+  .badge{background:#1e3a5f;color:#38bdf8;font-size:.7rem;padding:.2rem .65rem;border-radius:9999px;border:1px solid #1d4ed8}
+  .container{max-width:1100px;margin:0 auto;padding:1.5rem;display:grid;grid-template-columns:1fr 1fr;gap:1.25rem}
+  @media(max-width:700px){.container{grid-template-columns:1fr}}
+  .card{background:#1e293b;border:1px solid #334155;border-radius:.75rem;padding:1.25rem}
+  .card h2{font-size:.85rem;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.85rem;display:flex;align-items:center;gap:.4rem}
+  .tag{background:#0f172a;border:1px solid #334155;border-radius:.3rem;padding:.1rem .45rem;font-size:.6rem;color:#64748b}
+  label{display:block;font-size:.78rem;color:#94a3b8;margin-bottom:.35rem;margin-top:.7rem}
+  input,textarea,select{width:100%;background:#0f172a;border:1px solid #334155;border-radius:.35rem;color:#e2e8f0;padding:.45rem .7rem;font-size:.83rem;font-family:inherit}
+  textarea{resize:vertical;min-height:72px}
+  input:focus,textarea:focus{outline:none;border-color:#38bdf8}
+  button{margin-top:.85rem;background:#1d4ed8;color:#fff;border:none;border-radius:.35rem;padding:.55rem 1.1rem;font-size:.83rem;cursor:pointer;font-weight:600;transition:background .15s}
+  button:hover{background:#2563eb}
+  button.danger{background:#7f1d1d}button.danger:hover{background:#991b1b}
+  .result{margin-top:.85rem;background:#0f172a;border:1px solid #334155;border-radius:.35rem;padding:.65rem .85rem;font-size:.82rem;color:#a5f3fc;white-space:pre-wrap;word-break:break-all;min-height:2.5rem;font-family:'Cascadia Code','Fira Code',monospace;max-height:220px;overflow-y:auto}
+  .result.error{color:#f87171;border-color:#7f1d1d}
+  .stat{display:inline-block;background:#0f172a;border:1px solid #334155;border-radius:.35rem;padding:.2rem .65rem;margin:.2rem;font-size:.78rem;color:#94a3b8}
+  .stat strong{color:#38bdf8}
+  .full-width{grid-column:1/-1}
+  .msg-list{display:flex;flex-direction:column;gap:.4rem;max-height:180px;overflow-y:auto;margin-bottom:.75rem}
+  .msg{padding:.4rem .65rem;border-radius:.45rem;font-size:.83rem;max-width:85%}
+  .msg.user{background:#1e3a5f;color:#bae6fd;align-self:flex-end}
+  .msg.assistant{background:#1e293b;border:1px solid #334155;color:#e2e8f0;align-self:flex-start}
+  .msg.system{background:#1a1a2e;border:1px solid #4c1d95;color:#a78bfa;font-size:.72rem;text-align:center;align-self:center}
+  .msg.empty{color:#475569;font-size:.78rem;text-align:center;align-self:center}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+  .gh-link{display:inline-flex;align-items:center;gap:.4rem;color:#94a3b8;font-size:.78rem;text-decoration:none;border:1px solid #334155;padding:.3rem .7rem;border-radius:.35rem;transition:all .15s;margin-left:auto}
+  .gh-link:hover{color:#38bdf8;border-color:#38bdf8}
+</style>
+</head>
+<body>
+<header>
+  <h1>⚡ repo_llm</h1>
+  <span>LLM 유틸리티 라이브러리 인터랙티브 데모</span>
+  <span class="badge">v0.1.0</span>
+  <span class="badge">테스트 커버리지 98%</span>
+  <a class="gh-link" href="https://github.com/love1533/repo_llm" target="_blank">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+    GitHub
+  </a>
+</header>
+
+<div class="container">
+
+  <!-- PromptTemplate -->
+  <div class="card">
+    <h2>🔤 PromptTemplate <span class="tag">prompt.py</span></h2>
+    <label>템플릿 (중괄호로 변수 선언)</label>
+    <textarea id="pt-template">Translate the following {content_type} from {source_lang} to {target_lang}:
+
+{text}</textarea>
+    <label>변수 값 (JSON)</label>
+    <textarea id="pt-vars" rows="4">{"content_type": "sentence", "source_lang": "English", "target_lang": "Korean", "text": "Hello, world!"}</textarea>
+    <button onclick="renderPrompt()">렌더링</button>
+    <div class="result" id="pt-result">결과가 여기 표시됩니다.</div>
+  </div>
+
+  <!-- Utils -->
+  <div class="card">
+    <h2>🛠️ 텍스트 유틸리티 <span class="tag">utils.py</span></h2>
+    <label>분석할 텍스트</label>
+    <textarea id="ut-text">The quick brown fox jumps over the lazy dog. This is a sample text to demonstrate token estimation and chunking capabilities of the repo_llm library.</textarea>
+    <label>청크 최대 토큰 수</label>
+    <input id="ut-tokens" type="number" value="10" min="1" max="200"/>
+    <label>트런케이트 최대 글자 수</label>
+    <input id="ut-truncate" type="number" value="50" min="1" max="500"/>
+    <button onclick="analyzeText()">분석</button>
+    <div class="result" id="ut-result">결과가 여기 표시됩니다.</div>
+  </div>
+
+  <!-- JSON Extraction -->
+  <div class="card">
+    <h2>🔍 JSON 추출 <span class="tag">utils.extract_json</span></h2>
+    <label>LLM 응답 텍스트 (JSON 포함)</label>
+    <textarea id="jx-text">Sure! Here is the result:
+
+```json
+{"score": 9.2, "label": "positive", "keywords": ["good", "excellent"]}
+```
+
+Hope this helps!</textarea>
+    <button onclick="extractJson()">JSON 추출</button>
+    <div class="result" id="jx-result">결과가 여기 표시됩니다.</div>
+  </div>
+
+  <!-- Cache -->
+  <div class="card">
+    <h2>💾 InMemoryCache <span class="tag">cache.py</span></h2>
+    <label>키</label>
+    <input id="cache-key" value="my-response-key"/>
+    <label>저장할 텍스트</label>
+    <input id="cache-val" value="이것은 캐시된 LLM 응답입니다."/>
+    <button onclick="cacheSet()">저장 (SET)</button>
+    <label style="margin-top:1rem">조회할 키</label>
+    <input id="cache-get-key" value="my-response-key"/>
+    <button onclick="cacheGet()">조회 (GET)</button>
+    <div class="result" id="cache-result">결과가 여기 표시됩니다.</div>
+  </div>
+
+  <!-- ConversationMemory -->
+  <div class="card full-width">
+    <h2>💬 ConversationMemory <span class="tag">memory.py</span></h2>
+    <div class="msg-list" id="msg-list">
+      <div class="msg system">system: You are a helpful assistant.</div>
+      <div class="msg empty">대화 기록이 없습니다. 아래에서 메시지를 추가하세요.</div>
+    </div>
+    <div class="two-col">
+      <div>
+        <label>User 메시지</label>
+        <input id="mem-user" value="LLM이란 무엇인가요?"/>
+      </div>
+      <div>
+        <label>Assistant 응답 (시뮬레이션)</label>
+        <input id="mem-assistant" value="LLM은 Large Language Model의 약자로, 대규모 텍스트 데이터로 학습된 AI 모델입니다."/>
+      </div>
+    </div>
+    <button onclick="memAdd()">대화 추가</button>
+    <button class="danger" onclick="memClear()" style="margin-left:.5rem">초기화</button>
+    <div style="margin-top:.75rem" id="mem-stats">
+      <span class="stat">turns: <strong>0</strong></span>
+      <span class="stat">tokens≈<strong>0</strong></span>
+      <span class="stat">max_tokens: <strong>500</strong></span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── PromptTemplate ────────────────────────────────────────────────────────────
+function renderPrompt() {
+  const el = document.getElementById('pt-result');
+  try {
+    const template = document.getElementById('pt-template').value;
+    const vars = JSON.parse(document.getElementById('pt-vars').value);
+    const varNames = [...template.matchAll(/\{(\w+)\}/g)].map(m => m[1]);
+    const missing = varNames.filter(v => !(v in vars));
+    if (missing.length) throw new Error(`Missing variables: ${missing.join(', ')}`);
+    let result = template;
+    for (const [k, v] of Object.entries(vars)) result = result.replaceAll(`{${k}}`, v);
+    el.className = 'result';
+    el.textContent = `변수: [${[...new Set(varNames)].join(', ')}]\n\n렌더링 결과:\n${result}`;
+  } catch(e) { el.className='result error'; el.textContent=`오류: ${e.message}`; }
+}
+
+// ── Utils ─────────────────────────────────────────────────────────────────────
+function estimateTokens(text) { return text ? Math.max(1, Math.floor(text.length / 4)) : 0; }
+
+function chunkText(text, maxTokens) {
+  if (!text) return [];
+  const words = text.split(/\s+/);
+  const avgWordLen = words.slice(0,100).reduce((s,w)=>s+w.length,0) / Math.max(1,Math.min(100,words.length));
+  const wordsPerChunk = Math.max(1, Math.floor(maxTokens * 4 / Math.max(1, avgWordLen)));
+  const chunks = [];
+  for (let i = 0; i < words.length; i += wordsPerChunk)
+    chunks.push(words.slice(i, i + wordsPerChunk).join(' '));
+  return chunks;
+}
+
+function truncateText(text, maxChars, suffix='…') {
+  if (maxChars <= 0) throw new Error('max_chars must be > 0');
+  return text.length <= maxChars ? text : text.slice(0, maxChars - suffix.length) + suffix;
+}
+
+function analyzeText() {
+  const el = document.getElementById('ut-result');
+  try {
+    const text = document.getElementById('ut-text').value;
+    const maxTokens = parseInt(document.getElementById('ut-tokens').value);
+    const maxChars = parseInt(document.getElementById('ut-truncate').value);
+    if (maxTokens <= 0) throw new Error('max_tokens must be > 0');
+    const tokens = estimateTokens(text);
+    const chunks = chunkText(text, maxTokens);
+    const trunc = truncateText(text, maxChars);
+    el.className = 'result';
+    el.textContent = `추정 토큰 수: ${tokens}\n청크 수 (max_tokens=${maxTokens}): ${chunks.length}\n\n청크 목록:\n`
+      + chunks.map((c,i)=>`  [${i}] ${c}`).join('\n')
+      + `\n\n${maxChars}자 트런케이트: ${trunc}`;
+  } catch(e) { el.className='result error'; el.textContent=`오류: ${e.message}`; }
+}
+
+// ── JSON extraction ───────────────────────────────────────────────────────────
+function extractJson() {
+  const el = document.getElementById('jx-result');
+  try {
+    const text = document.getElementById('jx-text').value;
+    // Try code fence first
+    const fence = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (fence) {
+      const parsed = JSON.parse(fence[1]);
+      el.className = 'result';
+      el.textContent = '추출 성공 (코드펜스):\n' + JSON.stringify(parsed, null, 2);
+      return;
+    }
+    // Find first { or [
+    for (const [open, close] of [['{','}'],['[',']']]) {
+      const idx = text.indexOf(open);
+      if (idx === -1) continue;
+      let depth=0, inStr=false, esc=false;
+      for (let i=idx; i<text.length; i++) {
+        const ch=text[i];
+        if (esc){esc=false;continue}
+        if (ch==='\\'&&inStr){esc=true;continue}
+        if (ch==='"'){inStr=!inStr;continue}
+        if (inStr) continue;
+        if (ch===open) depth++;
+        else if (ch===close){depth--;if(depth===0){
+          const parsed=JSON.parse(text.slice(idx,i+1));
+          el.className='result';
+          el.textContent='추출 성공:\n'+JSON.stringify(parsed,null,2);
+          return;
+        }}
+      }
+    }
+    throw new Error('No JSON object or array found in text.');
+  } catch(e){ el.className='result error'; el.textContent=`오류: ${e.message}`; }
+}
+
+// ── InMemoryCache ─────────────────────────────────────────────────────────────
+const _cache = new Map(); // key → {text, model, tokens, ts}
+
+function cacheSet() {
+  const el = document.getElementById('cache-result');
+  const key = document.getElementById('cache-key').value.trim();
+  const text = document.getElementById('cache-val').value;
+  if (!key) { el.className='result error'; el.textContent='키를 입력하세요.'; return; }
+  _cache.set(key, { text, model:'demo-model', tokens: estimateTokens(text), ts: Date.now() });
+  el.className = 'result';
+  el.textContent = `저장 완료! ✓\n키: ${key}\n텍스트: ${text}\ncache size: ${_cache.size}`;
+}
+
+function cacheGet() {
+  const el = document.getElementById('cache-result');
+  const key = document.getElementById('cache-get-key').value.trim();
+  const hit = _cache.get(key);
+  if (hit) {
+    const age = ((Date.now()-hit.ts)/1000).toFixed(1);
+    el.className='result';
+    el.textContent=`캐시 HIT ✓\n키: ${key}\n텍스트: ${hit.text}\n모델: ${hit.model}\n추정 토큰: ${hit.tokens}\n저장 후 경과: ${age}s`;
+  } else {
+    el.className='result error';
+    el.textContent=`캐시 MISS ✗\n키 '${key}'가 캐시에 없습니다.`;
+  }
+}
+
+// ── ConversationMemory ────────────────────────────────────────────────────────
+const _turns = []; // [{user, assistant}]
+const MAX_TOKENS = 500;
+
+function wordCount(s){ return s.trim().split(/\s+/).filter(Boolean).length; }
+
+function renderMemory() {
+  const list = document.getElementById('msg-list');
+  list.innerHTML = '<div class="msg system">system: You are a helpful assistant.</div>';
+  if (_turns.length === 0) {
+    list.innerHTML += '<div class="msg empty">대화 기록이 없습니다.</div>';
+  } else {
+    _turns.forEach(t => {
+      list.innerHTML += `<div class="msg user">${t.user}</div>`;
+      list.innerHTML += `<div class="msg assistant">${t.assistant}</div>`;
+    });
+    list.lastElementChild.scrollIntoView({behavior:'smooth'});
+  }
+  const totalTokens = _turns.reduce((s,t)=>s+wordCount(t.user)+wordCount(t.assistant),0);
+  document.getElementById('mem-stats').innerHTML =
+    `<span class="stat">turns: <strong>${_turns.length}</strong></span>`+
+    `<span class="stat">tokens≈<strong>${totalTokens}</strong></span>`+
+    `<span class="stat">max_tokens: <strong>${MAX_TOKENS}</strong></span>`;
+}
+
+function memAdd() {
+  const user = document.getElementById('mem-user').value.trim();
+  const assistant = document.getElementById('mem-assistant').value.trim();
+  if (!user) { alert('User 메시지를 입력하세요.'); return; }
+  if (!assistant) { alert('Assistant 응답을 입력하세요.'); return; }
+  _turns.push({user, assistant});
+  // Trim oldest turns if over budget
+  let total = _turns.reduce((s,t)=>s+wordCount(t.user)+wordCount(t.assistant),0);
+  while (_turns.length > 1 && total > MAX_TOKENS) {
+    const removed = _turns.shift();
+    total -= wordCount(removed.user) + wordCount(removed.assistant);
+  }
+  renderMemory();
+}
+
+function memClear() { _turns.length = 0; renderMemory(); }
+
+renderMemory();
+</script>
+</body>
+</html>
