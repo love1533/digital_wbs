@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>repo_llm Demo</title>
+<title>재단법인 설립 WBS</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
@@ -11,291 +11,361 @@
   header h1{font-size:1.4rem;font-weight:700;color:#38bdf8}
   header span{color:#64748b;font-size:.875rem}
   .badge{background:#1e3a5f;color:#38bdf8;font-size:.7rem;padding:.2rem .65rem;border-radius:9999px;border:1px solid #1d4ed8}
-  .container{max-width:1100px;margin:0 auto;padding:1.5rem;display:grid;grid-template-columns:1fr 1fr;gap:1.25rem}
-  @media(max-width:700px){.container{grid-template-columns:1fr}}
-  .card{background:#1e293b;border:1px solid #334155;border-radius:.75rem;padding:1.25rem}
-  .card h2{font-size:.85rem;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.85rem;display:flex;align-items:center;gap:.4rem}
-  .tag{background:#0f172a;border:1px solid #334155;border-radius:.3rem;padding:.1rem .45rem;font-size:.6rem;color:#64748b}
-  label{display:block;font-size:.78rem;color:#94a3b8;margin-bottom:.35rem;margin-top:.7rem}
-  input,textarea,select{width:100%;background:#0f172a;border:1px solid #334155;border-radius:.35rem;color:#e2e8f0;padding:.45rem .7rem;font-size:.83rem;font-family:inherit}
-  textarea{resize:vertical;min-height:72px}
-  input:focus,textarea:focus{outline:none;border-color:#38bdf8}
-  button{margin-top:.85rem;background:#1d4ed8;color:#fff;border:none;border-radius:.35rem;padding:.55rem 1.1rem;font-size:.83rem;cursor:pointer;font-weight:600;transition:background .15s}
-  button:hover{background:#2563eb}
-  button.danger{background:#7f1d1d}button.danger:hover{background:#991b1b}
-  .result{margin-top:.85rem;background:#0f172a;border:1px solid #334155;border-radius:.35rem;padding:.65rem .85rem;font-size:.82rem;color:#a5f3fc;white-space:pre-wrap;word-break:break-all;min-height:2.5rem;font-family:'Cascadia Code','Fira Code',monospace;max-height:220px;overflow-y:auto}
-  .result.error{color:#f87171;border-color:#7f1d1d}
-  .stat{display:inline-block;background:#0f172a;border:1px solid #334155;border-radius:.35rem;padding:.2rem .65rem;margin:.2rem;font-size:.78rem;color:#94a3b8}
-  .stat strong{color:#38bdf8}
-  .full-width{grid-column:1/-1}
-  .msg-list{display:flex;flex-direction:column;gap:.4rem;max-height:180px;overflow-y:auto;margin-bottom:.75rem}
-  .msg{padding:.4rem .65rem;border-radius:.45rem;font-size:.83rem;max-width:85%}
-  .msg.user{background:#1e3a5f;color:#bae6fd;align-self:flex-end}
-  .msg.assistant{background:#1e293b;border:1px solid #334155;color:#e2e8f0;align-self:flex-start}
-  .msg.system{background:#1a1a2e;border:1px solid #4c1d95;color:#a78bfa;font-size:.72rem;text-align:center;align-self:center}
-  .msg.empty{color:#475569;font-size:.78rem;text-align:center;align-self:center}
-  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+  .badge.green{background:#052e16;color:#4ade80;border-color:#166534}
+  .badge.yellow{background:#2d1a00;color:#fbbf24;border-color:#92400e}
   .gh-link{display:inline-flex;align-items:center;gap:.4rem;color:#94a3b8;font-size:.78rem;text-decoration:none;border:1px solid #334155;padding:.3rem .7rem;border-radius:.35rem;transition:all .15s;margin-left:auto}
   .gh-link:hover{color:#38bdf8;border-color:#38bdf8}
+
+  .toolbar{background:#1e293b;border-bottom:1px solid #334155;padding:.65rem 2rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
+  .toolbar button{background:#0f172a;color:#94a3b8;border:1px solid #334155;border-radius:.3rem;padding:.3rem .75rem;font-size:.78rem;cursor:pointer;transition:all .15s}
+  .toolbar button:hover{color:#38bdf8;border-color:#38bdf8}
+  .toolbar button.active{background:#1e3a5f;color:#38bdf8;border-color:#1d4ed8}
+  .progress-summary{margin-left:auto;display:flex;align-items:center;gap:.75rem;font-size:.78rem;color:#64748b}
+  .progress-bar{width:140px;height:6px;background:#1e293b;border-radius:3px;overflow:hidden}
+  .progress-fill{height:100%;background:linear-gradient(90deg,#22c55e,#38bdf8);border-radius:3px;transition:width .4s}
+
+  .wbs-container{max-width:1000px;margin:1.5rem auto;padding:0 1.5rem 3rem}
+
+  /* Phase cards */
+  .phase{background:#1e293b;border:1px solid #334155;border-radius:.75rem;margin-bottom:1rem;overflow:hidden}
+  .phase-header{display:flex;align-items:center;gap:.75rem;padding:.9rem 1.1rem;cursor:pointer;user-select:none;transition:background .15s}
+  .phase-header:hover{background:#263347}
+  .phase-toggle{color:#64748b;font-size:.75rem;transition:transform .2s;width:14px;text-align:center}
+  .phase-toggle.open{transform:rotate(90deg)}
+  .phase-num{background:#1e3a5f;color:#38bdf8;font-size:.7rem;font-weight:700;padding:.15rem .5rem;border-radius:.25rem;min-width:2.2rem;text-align:center}
+  .phase-title{font-weight:600;font-size:.95rem;color:#e2e8f0;flex:1}
+  .phase-meta{display:flex;align-items:center;gap:.5rem;flex-shrink:0}
+  .phase-progress{font-size:.72rem;color:#64748b}
+  .mini-bar{width:60px;height:4px;background:#0f172a;border-radius:2px;overflow:hidden}
+  .mini-fill{height:100%;border-radius:2px;transition:width .4s}
+
+  /* Tasks */
+  .task-list{border-top:1px solid #1e293b;padding:.5rem .75rem .75rem}
+  .task{display:flex;align-items:flex-start;gap:.65rem;padding:.55rem .5rem;border-radius:.4rem;transition:background .1s;margin-bottom:.15rem}
+  .task:hover{background:#263347}
+  .task-check{margin-top:.1rem;width:16px;height:16px;border-radius:.25rem;border:1.5px solid #334155;background:#0f172a;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+  .task-check.done{background:#166534;border-color:#22c55e}
+  .task-check.doing{background:#1e3a5f;border-color:#38bdf8}
+  .task-check svg{width:10px;height:10px}
+  .task-body{flex:1;min-width:0}
+  .task-row{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+  .task-num{color:#475569;font-size:.7rem;font-family:monospace;flex-shrink:0}
+  .task-name{font-size:.85rem;color:#cbd5e1}
+  .task-name.done{text-decoration:line-through;color:#475569}
+  .status-tag{font-size:.62rem;padding:.1rem .4rem;border-radius:.2rem;font-weight:600;flex-shrink:0}
+  .status-tag.done{background:#052e16;color:#4ade80}
+  .status-tag.doing{background:#1e3a5f;color:#38bdf8}
+  .status-tag.todo{background:#1a1a2e;color:#64748b}
+  .status-tag.review{background:#2d1a00;color:#fbbf24}
+  .task-desc{font-size:.72rem;color:#475569;margin-top:.2rem}
+  .task-date{font-size:.7rem;color:#334155;flex-shrink:0;margin-left:auto}
+
+  /* Sub-tasks */
+  .subtask-list{margin-top:.35rem;margin-left:1.25rem;border-left:1px dashed #334155;padding-left:.75rem}
+  .subtask{display:flex;align-items:center;gap:.5rem;padding:.3rem .3rem;font-size:.78rem;color:#64748b;border-radius:.3rem;transition:background .1s}
+  .subtask:hover{background:#1a2540;color:#94a3b8}
+  .subtask-dot{width:5px;height:5px;border-radius:50%;background:#334155;flex-shrink:0}
+  .subtask-dot.done{background:#22c55e}
+  .subtask-dot.doing{background:#38bdf8}
+
+  /* Legend */
+  .legend{display:flex;align-items:center;gap:.65rem;font-size:.72rem;color:#64748b}
+  .legend-item{display:flex;align-items:center;gap:.3rem}
+
+  /* Stats panel */
+  .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-bottom:1.25rem}
+  @media(max-width:600px){.stats-row{grid-template-columns:repeat(2,1fr)}}
+  .stat-card{background:#1e293b;border:1px solid #334155;border-radius:.6rem;padding:.85rem 1rem}
+  .stat-label{font-size:.7rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem}
+  .stat-value{font-size:1.4rem;font-weight:700;color:#38bdf8}
+  .stat-sub{font-size:.7rem;color:#475569;margin-top:.2rem}
 </style>
 </head>
 <body>
 <header>
-  <h1>⚡ repo_llm</h1>
-  <span>LLM 유틸리티 라이브러리 인터랙티브 데모</span>
-  <span class="badge">v0.1.0</span>
-  <span class="badge">테스트 커버리지 98%</span>
+  <h1>📋 재단법인 설립 WBS</h1>
+  <span>Work Breakdown Structure</span>
+  <span class="badge">v1.0</span>
+  <span class="badge yellow" id="header-phase">진행중</span>
   <a class="gh-link" href="https://github.com/love1533/repo_llm" target="_blank">
     <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
     GitHub
   </a>
 </header>
 
-<div class="container">
-
-  <!-- PromptTemplate -->
-  <div class="card">
-    <h2>🔤 PromptTemplate <span class="tag">prompt.py</span></h2>
-    <label>템플릿 (중괄호로 변수 선언)</label>
-    <textarea id="pt-template">Translate the following {content_type} from {source_lang} to {target_lang}:
-
-{text}</textarea>
-    <label>변수 값 (JSON)</label>
-    <textarea id="pt-vars" rows="4">{"content_type": "sentence", "source_lang": "English", "target_lang": "Korean", "text": "Hello, world!"}</textarea>
-    <button onclick="renderPrompt()">렌더링</button>
-    <div class="result" id="pt-result">결과가 여기 표시됩니다.</div>
-  </div>
-
-  <!-- Utils -->
-  <div class="card">
-    <h2>🛠️ 텍스트 유틸리티 <span class="tag">utils.py</span></h2>
-    <label>분석할 텍스트</label>
-    <textarea id="ut-text">The quick brown fox jumps over the lazy dog. This is a sample text to demonstrate token estimation and chunking capabilities of the repo_llm library.</textarea>
-    <label>청크 최대 토큰 수</label>
-    <input id="ut-tokens" type="number" value="10" min="1" max="200"/>
-    <label>트런케이트 최대 글자 수</label>
-    <input id="ut-truncate" type="number" value="50" min="1" max="500"/>
-    <button onclick="analyzeText()">분석</button>
-    <div class="result" id="ut-result">결과가 여기 표시됩니다.</div>
-  </div>
-
-  <!-- JSON Extraction -->
-  <div class="card">
-    <h2>🔍 JSON 추출 <span class="tag">utils.extract_json</span></h2>
-    <label>LLM 응답 텍스트 (JSON 포함)</label>
-    <textarea id="jx-text">Sure! Here is the result:
-
-```json
-{"score": 9.2, "label": "positive", "keywords": ["good", "excellent"]}
-```
-
-Hope this helps!</textarea>
-    <button onclick="extractJson()">JSON 추출</button>
-    <div class="result" id="jx-result">결과가 여기 표시됩니다.</div>
-  </div>
-
-  <!-- Cache -->
-  <div class="card">
-    <h2>💾 InMemoryCache <span class="tag">cache.py</span></h2>
-    <label>키</label>
-    <input id="cache-key" value="my-response-key"/>
-    <label>저장할 텍스트</label>
-    <input id="cache-val" value="이것은 캐시된 LLM 응답입니다."/>
-    <button onclick="cacheSet()">저장 (SET)</button>
-    <label style="margin-top:1rem">조회할 키</label>
-    <input id="cache-get-key" value="my-response-key"/>
-    <button onclick="cacheGet()">조회 (GET)</button>
-    <div class="result" id="cache-result">결과가 여기 표시됩니다.</div>
-  </div>
-
-  <!-- ConversationMemory -->
-  <div class="card full-width">
-    <h2>💬 ConversationMemory <span class="tag">memory.py</span></h2>
-    <div class="msg-list" id="msg-list">
-      <div class="msg system">system: You are a helpful assistant.</div>
-      <div class="msg empty">대화 기록이 없습니다. 아래에서 메시지를 추가하세요.</div>
+<div class="toolbar">
+  <button class="active" onclick="filterAll()">전체</button>
+  <button onclick="filterStatus('todo')">대기</button>
+  <button onclick="filterStatus('doing')">진행중</button>
+  <button onclick="filterStatus('review')">검토중</button>
+  <button onclick="filterStatus('done')">완료</button>
+  <button onclick="expandAll()">전체 펼치기</button>
+  <button onclick="collapseAll()">전체 접기</button>
+  <div class="progress-summary">
+    <div class="legend">
+      <span class="legend-item"><span class="status-tag done">완료</span></span>
+      <span class="legend-item"><span class="status-tag doing">진행중</span></span>
+      <span class="legend-item"><span class="status-tag review">검토중</span></span>
+      <span class="legend-item"><span class="status-tag todo">대기</span></span>
     </div>
-    <div class="two-col">
-      <div>
-        <label>User 메시지</label>
-        <input id="mem-user" value="LLM이란 무엇인가요?"/>
-      </div>
-      <div>
-        <label>Assistant 응답 (시뮬레이션)</label>
-        <input id="mem-assistant" value="LLM은 Large Language Model의 약자로, 대규모 텍스트 데이터로 학습된 AI 모델입니다."/>
-      </div>
+    <span id="prog-text">0%</span>
+    <div class="progress-bar"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+  </div>
+</div>
+
+<div class="wbs-container">
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">전체 작업</div>
+      <div class="stat-value" id="stat-total">0</div>
+      <div class="stat-sub">tasks</div>
     </div>
-    <button onclick="memAdd()">대화 추가</button>
-    <button class="danger" onclick="memClear()" style="margin-left:.5rem">초기화</button>
-    <div style="margin-top:.75rem" id="mem-stats">
-      <span class="stat">turns: <strong>0</strong></span>
-      <span class="stat">tokens≈<strong>0</strong></span>
-      <span class="stat">max_tokens: <strong>500</strong></span>
+    <div class="stat-card">
+      <div class="stat-label">완료</div>
+      <div class="stat-value" style="color:#4ade80" id="stat-done">0</div>
+      <div class="stat-sub">completed</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">진행중</div>
+      <div class="stat-value" style="color:#38bdf8" id="stat-doing">0</div>
+      <div class="stat-sub">in progress</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">예상 기간</div>
+      <div class="stat-value" style="color:#fbbf24" id="stat-weeks">18</div>
+      <div class="stat-sub">주 (약 4.5개월)</div>
     </div>
   </div>
 
+  <!-- WBS Tree -->
+  <div id="wbs-root"></div>
 </div>
 
 <script>
-// ── PromptTemplate ────────────────────────────────────────────────────────────
-function renderPrompt() {
-  const el = document.getElementById('pt-result');
-  try {
-    const template = document.getElementById('pt-template').value;
-    const vars = JSON.parse(document.getElementById('pt-vars').value);
-    const varNames = [...template.matchAll(/\{(\w+)\}/g)].map(m => m[1]);
-    const missing = varNames.filter(v => !(v in vars));
-    if (missing.length) throw new Error(`Missing variables: ${missing.join(', ')}`);
-    let result = template;
-    for (const [k, v] of Object.entries(vars)) result = result.replaceAll(`{${k}}`, v);
-    el.className = 'result';
-    el.textContent = `변수: [${[...new Set(varNames)].join(', ')}]\n\n렌더링 결과:\n${result}`;
-  } catch(e) { el.className='result error'; el.textContent=`오류: ${e.message}`; }
+const WBS = [
+  {
+    id: '1.1', title: '사전 준비 단계', color: '#6366f1',
+    tasks: [
+      { id:'1.1.1', name:'설립 목적 및 비전 수립', status:'done', date:'1주차',
+        desc:'재단의 공익 목적, 미션, 비전 정의',
+        subs:['공익 사업 범위 결정','설립 취지문 작성','비전/미션 선언문 작성'] },
+      { id:'1.1.2', name:'설립 발기인 구성', status:'done', date:'1주차',
+        desc:'최소 3인 이상 발기인 확보 및 역할 배정',
+        subs:['이사장(대표) 선임','이사 구성 (5인 이상)','감사 선임 (2인 이상)'] },
+      { id:'1.1.3', name:'기본재산 확보 계획', status:'done', date:'2주차',
+        desc:'설립에 필요한 기본재산 목록 및 출연 계획 수립',
+        subs:['기본재산 목록 작성','출연자 서약 확보','재산 평가 및 감정'] },
+      { id:'1.1.4', name:'정관 초안 작성', status:'done', date:'2주차',
+        desc:'재단 정관 초안 작성 및 법무 검토',
+        subs:['법무법인 자문 의뢰','정관 초안 작성','이사회 사전 검토'] },
+    ]
+  },
+  {
+    id: '1.2', title: '설립 인가 신청', color: '#0ea5e9',
+    tasks: [
+      { id:'1.2.1', name:'설립 신청 서류 준비', status:'done', date:'3주차',
+        desc:'주무관청 제출용 신청 서류 일체 준비',
+        subs:['설립허가신청서 작성','정관 최종본 완성','사업계획서 작성','예산서 작성','재산 출연 공증'] },
+      { id:'1.2.2', name:'임원 서류 준비', status:'done', date:'3주차',
+        desc:'전체 임원의 개인 서류 및 취임 승낙서 수집',
+        subs:['임원 명단 작성','임원 이력서 수집','취임 승낙서 징구','인감증명서 수집'] },
+      { id:'1.2.3', name:'주무관청 제출', status:'doing', date:'4주차',
+        desc:'해당 주무관청(교육부·문화부 등)에 서류 제출',
+        subs:['주무관청 확인','접수 및 제출','접수증 수령'] },
+      { id:'1.2.4', name:'보완 요청 대응', status:'todo', date:'5~6주차',
+        desc:'주무관청 보완 요청사항 검토 및 추가 서류 제출',
+        subs:['보완 내용 확인','추가 서류 작성','재제출'] },
+      { id:'1.2.5', name:'설립 인가 취득', status:'todo', date:'7~8주차',
+        desc:'설립 인가서 수령 및 보관',
+        subs:['인가서 원본 수령','법인 도장 제작','공고 절차 이행'] },
+    ]
+  },
+  {
+    id: '1.3', title: '법인 설립 등기', color: '#22c55e',
+    tasks: [
+      { id:'1.3.1', name:'등기 서류 준비', status:'todo', date:'8주차',
+        desc:'법원 등기 신청에 필요한 서류 일체 준비',
+        subs:['설립허가서 사본','이사회 의사록 작성','임원 취임 관련 서류 정리'] },
+      { id:'1.3.2', name:'법원 등기 신청', status:'todo', date:'9주차',
+        desc:'관할 법원에 법인 설립 등기 신청',
+        subs:['등기 신청서 작성','등록 면허세 납부','법원 접수'] },
+      { id:'1.3.3', name:'법인등록번호 취득', status:'todo', date:'9~10주차',
+        desc:'등기 완료 후 법인등록번호 발급 및 사업자등록',
+        subs:['등기부등본 수령','사업자등록 신청','고유번호증 발급'] },
+    ]
+  },
+  {
+    id: '1.4', title: '행정 인프라 구축', color: '#f59e0b',
+    tasks: [
+      { id:'1.4.1', name:'사무소 설치', status:'todo', date:'10~11주차',
+        desc:'법인 사무소 임차 및 환경 구축',
+        subs:['사무소 임대차 계약','비품 및 사무용품 구비','통신·인터넷 설치'] },
+      { id:'1.4.2', name:'법인 통장 개설 및 재산 이전', status:'todo', date:'10주차',
+        desc:'법인 명의 통장 개설 및 기본재산 이전 등기',
+        subs:['법인 통장 개설','부동산 이전 등기','주식 명의 변경'] },
+      { id:'1.4.3', name:'직원 채용', status:'todo', date:'11~12주차',
+        desc:'사무국장 및 실무 담당자 채용',
+        subs:['채용 공고 게시','서류·면접 전형','채용 결정 및 계약'] },
+      { id:'1.4.4', name:'내부 규정 수립', status:'todo', date:'12~13주차',
+        desc:'인사·회계·사업 운영 규정 제정',
+        subs:['인사 규정 작성','회계 규정 작성','사업 운영 규정 작성','이사회 승인'] },
+    ]
+  },
+  {
+    id: '1.5', title: '회계 및 세무 체계 구축', color: '#ec4899',
+    tasks: [
+      { id:'1.5.1', name:'회계 시스템 도입', status:'todo', date:'13주차',
+        desc:'비영리법인 회계기준 준수 회계 소프트웨어 도입',
+        subs:['회계 프로그램 선정','차트 오브 어카운트 설정','초기 데이터 입력'] },
+      { id:'1.5.2', name:'세무 대리인 선임', status:'todo', date:'13주차',
+        desc:'법인세·부가세 신고 담당 세무사 선임',
+        subs:['세무법인 계약','면세 사업자 확인','수익사업 분류'] },
+      { id:'1.5.3', name:'공익법인 결산 보고 체계 수립', status:'todo', date:'14주차',
+        desc:'국세청 공시 및 주무관청 보고 체계 구축',
+        subs:['결산 일정표 작성','감사 계획 수립','공시 프로세스 정립'] },
+    ]
+  },
+  {
+    id: '1.6', title: '사업 개시', color: '#14b8a6',
+    tasks: [
+      { id:'1.6.1', name:'연간 사업 계획 수립', status:'todo', date:'14~15주차',
+        desc:'첫 연도 공익 사업 계획 및 세부 일정 수립',
+        subs:['사업 목표 설정','세부 사업별 계획 작성','담당자 배정'] },
+      { id:'1.6.2', name:'예산 편성', status:'todo', date:'15주차',
+        desc:'수입·지출 예산안 작성 및 이사회 심의·의결',
+        subs:['예산안 작성','이사회 안건 상정','예산 의결 및 공고'] },
+      { id:'1.6.3', name:'공익 사업 실행', status:'todo', date:'16~18주차',
+        desc:'장학금 지급·연구 지원·문화사업 등 공익 사업 본격 시행',
+        subs:['사업 대상자 선정','지원금 지급 및 협약','사업 결과 보고'] },
+      { id:'1.6.4', name:'이사회·감사 정기 운영', status:'todo', date:'상시',
+        desc:'정기 이사회 및 감사 운영 체계 확립',
+        subs:['이사회 개최 공고 (연2회 이상)','감사 실시','의사록 작성·보존'] },
+    ]
+  },
+];
+
+// ── State ──────────────────────────────────────────────────────────────────
+const taskStatus = {}; // taskId → status (overridden by user click)
+const phaseOpen = {};  // phaseId → bool
+let filterMode = 'all';
+
+// init
+WBS.forEach(ph => {
+  phaseOpen[ph.id] = true;
+  ph.tasks.forEach(t => { taskStatus[t.id] = t.status; });
+});
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function statusLabel(s) {
+  const m = {done:'완료', doing:'진행중', review:'검토중', todo:'대기'};
+  return m[s] || s;
 }
 
-// ── Utils ─────────────────────────────────────────────────────────────────────
-function estimateTokens(text) { return text ? Math.max(1, Math.floor(text.length / 4)) : 0; }
-
-function chunkText(text, maxTokens) {
-  if (!text) return [];
-  const words = text.split(/\s+/);
-  const avgWordLen = words.slice(0,100).reduce((s,w)=>s+w.length,0) / Math.max(1,Math.min(100,words.length));
-  const wordsPerChunk = Math.max(1, Math.floor(maxTokens * 4 / Math.max(1, avgWordLen)));
-  const chunks = [];
-  for (let i = 0; i < words.length; i += wordsPerChunk)
-    chunks.push(words.slice(i, i + wordsPerChunk).join(' '));
-  return chunks;
+function cycleStatus(id) {
+  const order = ['todo','doing','review','done'];
+  const cur = taskStatus[id];
+  taskStatus[id] = order[(order.indexOf(cur)+1) % order.length];
+  render();
 }
 
-function truncateText(text, maxChars, suffix='…') {
-  if (maxChars <= 0) throw new Error('max_chars must be > 0');
-  return text.length <= maxChars ? text : text.slice(0, maxChars - suffix.length) + suffix;
+function togglePhase(id) {
+  phaseOpen[id] = !phaseOpen[id];
+  render();
 }
 
-function analyzeText() {
-  const el = document.getElementById('ut-result');
-  try {
-    const text = document.getElementById('ut-text').value;
-    const maxTokens = parseInt(document.getElementById('ut-tokens').value);
-    const maxChars = parseInt(document.getElementById('ut-truncate').value);
-    if (maxTokens <= 0) throw new Error('max_tokens must be > 0');
-    const tokens = estimateTokens(text);
-    const chunks = chunkText(text, maxTokens);
-    const trunc = truncateText(text, maxChars);
-    el.className = 'result';
-    el.textContent = `추정 토큰 수: ${tokens}\n청크 수 (max_tokens=${maxTokens}): ${chunks.length}\n\n청크 목록:\n`
-      + chunks.map((c,i)=>`  [${i}] ${c}`).join('\n')
-      + `\n\n${maxChars}자 트런케이트: ${trunc}`;
-  } catch(e) { el.className='result error'; el.textContent=`오류: ${e.message}`; }
+function expandAll()  { WBS.forEach(p => phaseOpen[p.id]=true);  render(); }
+function collapseAll(){ WBS.forEach(p => phaseOpen[p.id]=false); render(); }
+
+function filterAll()        { filterMode='all';   render(); setActiveBtn(0); }
+function filterStatus(s)    { filterMode=s;       render(); setActiveBtn(['todo','doing','review','done'].indexOf(s)+1); }
+
+function setActiveBtn(idx) {
+  document.querySelectorAll('.toolbar button').forEach((b,i)=>b.classList.toggle('active',i===idx));
 }
 
-// ── JSON extraction ───────────────────────────────────────────────────────────
-function extractJson() {
-  const el = document.getElementById('jx-result');
-  try {
-    const text = document.getElementById('jx-text').value;
-    // Try code fence first
-    const fence = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-    if (fence) {
-      const parsed = JSON.parse(fence[1]);
-      el.className = 'result';
-      el.textContent = '추출 성공 (코드펜스):\n' + JSON.stringify(parsed, null, 2);
-      return;
+function calcStats() {
+  let total=0,done=0,doing=0;
+  WBS.forEach(ph => ph.tasks.forEach(t => {
+    total++; const s=taskStatus[t.id];
+    if(s==='done') done++;
+    if(s==='doing') doing++;
+  }));
+  return {total,done,doing};
+}
+
+function render() {
+  const root = document.getElementById('wbs-root');
+  const {total,done,doing} = calcStats();
+  const pct = total ? Math.round(done/total*100) : 0;
+
+  document.getElementById('prog-text').textContent = pct+'%';
+  document.getElementById('prog-fill').style.width = pct+'%';
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-done').textContent = done;
+  document.getElementById('stat-doing').textContent = doing;
+
+  let html = '';
+  WBS.forEach(ph => {
+    const phTasks = ph.tasks.filter(t => filterMode==='all' || taskStatus[t.id]===filterMode);
+    if (phTasks.length === 0 && filterMode !== 'all') return;
+
+    const phDone = ph.tasks.filter(t=>taskStatus[t.id]==='done').length;
+    const phTotal = ph.tasks.length;
+    const phPct = phTotal ? Math.round(phDone/phTotal*100) : 0;
+    const open = phaseOpen[ph.id];
+
+    html += `<div class="phase">
+      <div class="phase-header" onclick="togglePhase('${ph.id}')">
+        <span class="phase-toggle ${open?'open':''}">▶</span>
+        <span class="phase-num">${ph.id}</span>
+        <span class="phase-title">${ph.title}</span>
+        <div class="phase-meta">
+          <span class="phase-progress">${phDone}/${phTotal}</span>
+          <div class="mini-bar"><div class="mini-fill" style="width:${phPct}%;background:${ph.color}"></div></div>
+        </div>
+      </div>`;
+
+    if (open) {
+      html += `<div class="task-list">`;
+      phTasks.forEach(t => {
+        const s = taskStatus[t.id];
+        const subsHtml = t.subs ? t.subs.map(sub => {
+          const sdone = sub.toLowerCase().includes('완료') || s==='done';
+          return `<div class="subtask">
+            <div class="subtask-dot ${s==='done'?'done':s==='doing'?'doing':''}"></div>
+            <span>${sub}</span>
+          </div>`;
+        }).join('') : '';
+
+        html += `<div class="task" data-status="${s}">
+          <div class="task-check ${s}" onclick="cycleStatus('${t.id}')" title="클릭하여 상태 변경">
+            ${s==='done'?'<svg viewBox="0 0 12 12" fill="none"><polyline points="1.5,6 4.5,9 10.5,3" stroke="#4ade80" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>':''}
+            ${s==='doing'?'<svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="2.5" fill="#38bdf8"/></svg>':''}
+            ${s==='review'?'<svg viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>':''}
+          </div>
+          <div class="task-body">
+            <div class="task-row">
+              <span class="task-num">${t.id}</span>
+              <span class="task-name ${s==='done'?'done':''}">${t.name}</span>
+              <span class="status-tag ${s}">${statusLabel(s)}</span>
+              <span class="task-date">${t.date}</span>
+            </div>
+            ${t.desc ? `<div class="task-desc">${t.desc}</div>` : ''}
+            ${subsHtml ? `<div class="subtask-list">${subsHtml}</div>` : ''}
+          </div>
+        </div>`;
+      });
+      html += `</div>`;
     }
-    // Find first { or [
-    for (const [open, close] of [['{','}'],['[',']']]) {
-      const idx = text.indexOf(open);
-      if (idx === -1) continue;
-      let depth=0, inStr=false, esc=false;
-      for (let i=idx; i<text.length; i++) {
-        const ch=text[i];
-        if (esc){esc=false;continue}
-        if (ch==='\\'&&inStr){esc=true;continue}
-        if (ch==='"'){inStr=!inStr;continue}
-        if (inStr) continue;
-        if (ch===open) depth++;
-        else if (ch===close){depth--;if(depth===0){
-          const parsed=JSON.parse(text.slice(idx,i+1));
-          el.className='result';
-          el.textContent='추출 성공:\n'+JSON.stringify(parsed,null,2);
-          return;
-        }}
-      }
-    }
-    throw new Error('No JSON object or array found in text.');
-  } catch(e){ el.className='result error'; el.textContent=`오류: ${e.message}`; }
+    html += `</div>`;
+  });
+
+  root.innerHTML = html;
 }
 
-// ── InMemoryCache ─────────────────────────────────────────────────────────────
-const _cache = new Map(); // key → {text, model, tokens, ts}
-
-function cacheSet() {
-  const el = document.getElementById('cache-result');
-  const key = document.getElementById('cache-key').value.trim();
-  const text = document.getElementById('cache-val').value;
-  if (!key) { el.className='result error'; el.textContent='키를 입력하세요.'; return; }
-  _cache.set(key, { text, model:'demo-model', tokens: estimateTokens(text), ts: Date.now() });
-  el.className = 'result';
-  el.textContent = `저장 완료! ✓\n키: ${key}\n텍스트: ${text}\ncache size: ${_cache.size}`;
-}
-
-function cacheGet() {
-  const el = document.getElementById('cache-result');
-  const key = document.getElementById('cache-get-key').value.trim();
-  const hit = _cache.get(key);
-  if (hit) {
-    const age = ((Date.now()-hit.ts)/1000).toFixed(1);
-    el.className='result';
-    el.textContent=`캐시 HIT ✓\n키: ${key}\n텍스트: ${hit.text}\n모델: ${hit.model}\n추정 토큰: ${hit.tokens}\n저장 후 경과: ${age}s`;
-  } else {
-    el.className='result error';
-    el.textContent=`캐시 MISS ✗\n키 '${key}'가 캐시에 없습니다.`;
-  }
-}
-
-// ── ConversationMemory ────────────────────────────────────────────────────────
-const _turns = []; // [{user, assistant}]
-const MAX_TOKENS = 500;
-
-function wordCount(s){ return s.trim().split(/\s+/).filter(Boolean).length; }
-
-function renderMemory() {
-  const list = document.getElementById('msg-list');
-  list.innerHTML = '<div class="msg system">system: You are a helpful assistant.</div>';
-  if (_turns.length === 0) {
-    list.innerHTML += '<div class="msg empty">대화 기록이 없습니다.</div>';
-  } else {
-    _turns.forEach(t => {
-      list.innerHTML += `<div class="msg user">${t.user}</div>`;
-      list.innerHTML += `<div class="msg assistant">${t.assistant}</div>`;
-    });
-    list.lastElementChild.scrollIntoView({behavior:'smooth'});
-  }
-  const totalTokens = _turns.reduce((s,t)=>s+wordCount(t.user)+wordCount(t.assistant),0);
-  document.getElementById('mem-stats').innerHTML =
-    `<span class="stat">turns: <strong>${_turns.length}</strong></span>`+
-    `<span class="stat">tokens≈<strong>${totalTokens}</strong></span>`+
-    `<span class="stat">max_tokens: <strong>${MAX_TOKENS}</strong></span>`;
-}
-
-function memAdd() {
-  const user = document.getElementById('mem-user').value.trim();
-  const assistant = document.getElementById('mem-assistant').value.trim();
-  if (!user) { alert('User 메시지를 입력하세요.'); return; }
-  if (!assistant) { alert('Assistant 응답을 입력하세요.'); return; }
-  _turns.push({user, assistant});
-  // Trim oldest turns if over budget
-  let total = _turns.reduce((s,t)=>s+wordCount(t.user)+wordCount(t.assistant),0);
-  while (_turns.length > 1 && total > MAX_TOKENS) {
-    const removed = _turns.shift();
-    total -= wordCount(removed.user) + wordCount(removed.assistant);
-  }
-  renderMemory();
-}
-
-function memClear() { _turns.length = 0; renderMemory(); }
-
-renderMemory();
+render();
 </script>
 </body>
 </html>
