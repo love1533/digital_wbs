@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]" fastapi uvicorn python-multipart
+
+      - name: Run tests with coverage
+        run: python -m pytest tests/ --cov=repo_llm --cov-branch --cov-report=term-missing
+
+      - name: Start web server and health-check
+        run: |
+          uvicorn app:app --host 0.0.0.0 --port 8000 &
+          SERVER_PID=$!
+          echo "Server PID: $SERVER_PID"
+          # Wait up to 10s for server to be ready
+          for i in $(seq 1 10); do
+            if curl -sf http://localhost:8000/ > /dev/null 2>&1; then
+              echo "✅ Server is up (attempt $i)"
+              break
+            fi
+            echo "Waiting... ($i/10)"
+            sleep 1
+          done
+          # Verify all endpoints respond
+          curl -sf http://localhost:8000/ | grep -q "repo_llm" && echo "✅ GET / OK"
+          curl -sf -X POST http://localhost:8000/prompt/render \
+            -d "template=Hello {name}&variables={\"name\":\"GitHub\"}" | grep -q "GitHub" && echo "✅ POST /prompt/render OK"
+          curl -sf -X POST http://localhost:8000/utils/analyze \
+            -d "text=Hello+world+test&max_tokens=5" | grep -q "토큰" && echo "✅ POST /utils/analyze OK"
+          kill $SERVER_PID
+          echo "✅ All checks passed"
