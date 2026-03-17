@@ -1,0 +1,73 @@
+name: JIRA WBS 자동 업데이트
+
+# ─── 실행 트리거 ───────────────────────────────────────────────────────────────
+on:
+  schedule:
+    # ① 매시간 정각 (UTC 기준 → KST +9h)
+    - cron: "0 * * * *"
+    # ② 매일 오전 9시 KST (UTC 00:00)  ← 필요시 아래 주석 해제
+    # - cron: "0 0 * * *"
+
+  workflow_dispatch:          # 수동 실행 버튼
+    inputs:
+      update_interval:
+        description: "실행 이유 (선택)"
+        required: false
+        default: "수동 실행"
+
+# ─── 권한 ──────────────────────────────────────────────────────────────────────
+permissions:
+  contents: write
+
+# ─── Job ───────────────────────────────────────────────────────────────────────
+jobs:
+  update-wbs:
+    name: JIRA 데이터 동기화 → HTML 생성
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      # 1. 소스 체크아웃
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # 2. Python 환경
+      - name: 🐍 Python 3.11 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: scripts/requirements.txt
+
+      # 3. 의존성 설치
+      - name: 📦 의존성 설치
+        run: pip install -r scripts/requirements.txt
+
+      # 4. WBS HTML 생성 (JIRA → docs/index.html)
+      - name: 🔄 WBS HTML 생성
+        env:
+          JIRA_URL:          ${{ secrets.JIRA_URL }}
+          JIRA_EMAIL:        ${{ secrets.JIRA_EMAIL }}
+          JIRA_API_TOKEN:    ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_PROJECT_KEY:  ${{ secrets.JIRA_PROJECT_KEY }}
+          WBS_PASSWORD:      ${{ secrets.WBS_PASSWORD }}
+          WBS_TITLE:         ${{ vars.WBS_TITLE }}          # optional: Actions Variables
+          WBS_OUTPUT:        docs/index.html
+        run: python scripts/generate_wbs.py
+
+      # 5. 변경 있을 때만 커밋/푸시
+      - name: 📤 변경사항 커밋 & 푸시
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/index.html
+          if git diff --staged --quiet; then
+            echo "✅ JIRA 데이터 변경 없음 — 커밋 생략"
+          else
+            CHANGED=$(git diff --staged --stat | tail -1)
+            git commit -m "chore: WBS JIRA 동기화 $(date '+%Y-%m-%d %H:%M KST') [$CHANGED]"
+            git push origin HEAD
+            echo "✅ HTML 업데이트 완료"
+          fi
