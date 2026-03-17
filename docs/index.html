@@ -2,600 +2,460 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>컨설팅 프로젝트 WBS</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>프로젝트 WBS — GCGF0323</title>
 <style>
+/* ── Reset ── */
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh;font-size:13px}
-header{background:linear-gradient(135deg,#1e293b,#0f172a);border-bottom:1px solid #334155;padding:1rem 1.5rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
-header h1{font-size:1.2rem;font-weight:700;color:#38bdf8}
-.badge{background:#1e3a5f;color:#38bdf8;font-size:.65rem;padding:.15rem .5rem;border-radius:9999px;border:1px solid #1d4ed8}
-.badge.green{background:#052e16;color:#4ade80;border-color:#166534}
-.badge.amber{background:#2d1a00;color:#fbbf24;border-color:#92400e}
-.gh-link{display:inline-flex;align-items:center;gap:.35rem;color:#94a3b8;font-size:.72rem;text-decoration:none;border:1px solid #334155;padding:.25rem .6rem;border-radius:.3rem;transition:all .15s;margin-left:auto}
-.gh-link:hover{color:#38bdf8;border-color:#38bdf8}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f0f4f8;color:#1e293b;font-size:13px;min-height:100vh}
 
-/* Tabs */
-.tabs{background:#1e293b;border-bottom:1px solid #334155;display:flex;gap:0;padding:0 1.5rem}
-.tab-btn{padding:.65rem 1.1rem;font-size:.78rem;color:#64748b;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap}
-.tab-btn:hover{color:#94a3b8}
-.tab-btn.active{color:#38bdf8;border-bottom-color:#38bdf8}
-.tab-panel{display:none}.tab-panel.active{display:block}
+/* ── Password Gate ── */
+#gate{position:fixed;inset:0;background:linear-gradient(135deg,#1e3a5f 0%,#0f172a 100%);display:flex;align-items:center;justify-content:center;z-index:9999}
+.gate-box{background:#fff;border-radius:16px;padding:3rem 3.5rem;width:400px;text-align:center;box-shadow:0 32px 64px rgba(0,0,0,.45)}
+.gate-logo{font-size:2.5rem;margin-bottom:1rem}
+.gate-title{font-size:1.35rem;font-weight:700;color:#1e293b;margin-bottom:.3rem}
+.gate-sub{font-size:.82rem;color:#64748b;margin-bottom:2rem}
+.gate-input{width:100%;padding:.8rem 1.1rem;border:2px solid #e2e8f0;border-radius:.6rem;font-size:.95rem;color:#1e293b;outline:none;transition:border .2s,box-shadow .2s;margin-bottom:1rem}
+.gate-input:focus{border-color:#2563eb;box-shadow:0 0 0 4px rgba(37,99,235,.12)}
+.gate-btn{width:100%;padding:.8rem;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border:none;border-radius:.6rem;font-size:.95rem;font-weight:600;cursor:pointer;transition:opacity .2s;letter-spacing:.01em}
+.gate-btn:hover{opacity:.9}
+.gate-err{font-size:.75rem;color:#ef4444;margin-top:.65rem;min-height:1.1rem}
+.gate-hint{font-size:.68rem;color:#93c5fd;margin-top:.75rem}
 
-/* Toolbar */
-.toolbar{background:#1a2332;border-bottom:1px solid #334155;padding:.5rem 1.5rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
-.tb-btn{background:#0f172a;color:#94a3b8;border:1px solid #334155;border-radius:.25rem;padding:.25rem .6rem;font-size:.72rem;cursor:pointer;transition:all .15s}
-.tb-btn:hover{color:#38bdf8;border-color:#38bdf8}
-.tb-btn.on{background:#1e3a5f;color:#38bdf8;border-color:#1d4ed8}
-.progress-wrap{margin-left:auto;display:flex;align-items:center;gap:.6rem;font-size:.72rem;color:#64748b}
-.pbar{width:120px;height:5px;background:#1e293b;border-radius:3px;overflow:hidden}
-.pfill{height:100%;background:linear-gradient(90deg,#22c55e,#38bdf8);border-radius:3px;transition:width .4s}
+/* ── App Shell ── */
+#main{display:none}
+.app-header{background:#1e293b;color:#fff;padding:.85rem 1.5rem;display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.35)}
+.app-header h1{font-size:.98rem;font-weight:700;flex:1;min-width:0}
+.hbadge{font-size:.63rem;padding:.18rem .55rem;border-radius:99px;font-weight:600;white-space:nowrap}
+.hb-blue{background:#1d4ed8;color:#bfdbfe}.hb-green{background:#166534;color:#bbf7d0}.hb-amber{background:#92400e;color:#fde68a}
+.sync{font-size:.67rem;color:#94a3b8;display:flex;align-items:center;gap:.3rem;margin-left:auto;white-space:nowrap}
+.sync-dot{width:6px;height:6px;border-radius:50%;background:#4ade80;animation:blink 2s infinite;flex-shrink:0}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
 
-/* Stats */
-.stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:.6rem;padding:1rem 1.5rem}
-@media(max-width:700px){.stats-row{grid-template-columns:repeat(3,1fr)}}
-.sc{background:#1e293b;border:1px solid #334155;border-radius:.5rem;padding:.65rem .85rem}
-.sc-label{font-size:.62rem;color:#475569;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.3rem}
-.sc-val{font-size:1.2rem;font-weight:700;color:#38bdf8}
-.sc-sub{font-size:.62rem;color:#334155;margin-top:.15rem}
+/* ── Stats ── */
+.stats-strip{display:grid;grid-template-columns:repeat(6,1fr);gap:0;background:#fff;border-bottom:2px solid #e2e8f0}
+@media(max-width:680px){.stats-strip{grid-template-columns:repeat(3,1fr)}}
+.stat{text-align:center;padding:.7rem .5rem;border-right:1px solid #f1f5f9}
+.stat:last-child{border-right:none}
+.stat-val{font-size:1.5rem;font-weight:800;line-height:1}
+.stat-lbl{font-size:.58rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;margin-top:.2rem}
 
-/* WBS Tree */
-.wbs-wrap{padding:0 1.5rem 2rem}
-.phase-block{background:#1e293b;border:1px solid #334155;border-radius:.6rem;margin-bottom:.75rem;overflow:hidden}
-.phase-hdr{display:flex;align-items:center;gap:.6rem;padding:.75rem 1rem;cursor:pointer;user-select:none;transition:background .15s}
-.phase-hdr:hover{background:#263347}
-.chevron{color:#64748b;font-size:.7rem;transition:transform .2s;width:12px}
-.chevron.open{transform:rotate(90deg)}
-.phase-id{font-size:.68rem;font-weight:700;padding:.12rem .45rem;border-radius:.2rem;min-width:2rem;text-align:center}
-.phase-name{font-weight:600;font-size:.88rem;flex:1}
-.phase-stat{font-size:.68rem;color:#64748b;display:flex;align-items:center;gap:.4rem}
-.mbar{width:50px;height:3px;background:#0f172a;border-radius:2px;overflow:hidden}
-.mfill{height:100%;border-radius:2px}
+/* ── Progress ── */
+.prog-strip{padding:.55rem 1.5rem;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:.85rem}
+.prog-bar{flex:1;height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden}
+.prog-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,#1d4ed8,#0ea5e9);transition:width .6s ease}
+.prog-pct{font-size:.75rem;font-weight:800;color:#1d4ed8;min-width:3rem;text-align:right}
+.prog-label{font-size:.7rem;color:#64748b;white-space:nowrap}
 
-/* Task rows */
-.task-rows{border-top:1px solid #1a2332}
-.tr{display:flex;align-items:flex-start;gap:.5rem;padding:.45rem .75rem;border-radius:.3rem;transition:background .1s;margin:.1rem .35rem}
-.tr:hover{background:#1a2540}
-.tr.milestone-row{background:#1a1a30;border-left:3px solid #fbbf24;border-radius:0}
-.tr.milestone-row:hover{background:#232340}
-.chk{margin-top:.1rem;width:14px;height:14px;border-radius:.2rem;border:1.5px solid #334155;background:#0f172a;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
-.chk.done{background:#166534;border-color:#22c55e}
-.chk.doing{background:#1e3a5f;border-color:#38bdf8}
-.chk.review{background:#2d1a00;border-color:#fbbf24}
-.chk svg{width:9px;height:9px}
-.tbody{flex:1;min-width:0}
-.trow1{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap}
-.tid{color:#475569;font-size:.65rem;font-family:monospace;flex-shrink:0;min-width:3.5rem}
-.tname{font-size:.82rem;color:#cbd5e1}
-.tname.done{text-decoration:line-through;color:#475569}
-.milestone-mark{color:#fbbf24;font-size:.7rem}
-.area-tag{font-size:.58rem;padding:.08rem .35rem;border-radius:.2rem;font-weight:600;flex-shrink:0}
-.stag{font-size:.6rem;padding:.07rem .35rem;border-radius:.15rem;font-weight:600;flex-shrink:0}
-.stag.done{background:#052e16;color:#4ade80}
-.stag.doing{background:#1e3a5f;color:#38bdf8}
-.stag.review{background:#2d1a00;color:#fbbf24}
-.stag.todo{background:#1a1a2e;color:#475569}
-.req-ids{font-size:.58rem;color:#334155;flex-shrink:0}
-.tdate{font-size:.65rem;color:#334155;flex-shrink:0;margin-left:auto}
-.tdesc{font-size:.68rem;color:#475569;margin-top:.15rem}
-.subs{margin:.25rem 0 0 1rem;border-left:1px dashed #334155;padding-left:.65rem}
-.sub{display:flex;align-items:center;gap:.4rem;padding:.18rem .2rem;font-size:.73rem;color:#475569}
-.sub:hover{color:#64748b}
-.sdot{width:4px;height:4px;border-radius:50%;background:#334155;flex-shrink:0}
-.sdot.done{background:#22c55e}.sdot.doing{background:#38bdf8}
+/* ── Toolbar ── */
+.toolbar{padding:.55rem 1.5rem;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:.38rem;flex-wrap:wrap}
+.tbtn{padding:.3rem .68rem;border:1.5px solid #e2e8f0;border-radius:.35rem;font-size:.7rem;font-weight:500;cursor:pointer;background:#fff;color:#64748b;transition:all .15s;white-space:nowrap}
+.tbtn:hover{border-color:#2563eb;color:#2563eb;background:#eff6ff}
+.tbtn.on{background:#2563eb;border-color:#2563eb;color:#fff}
+.tsep{width:1px;height:16px;background:#e2e8f0;margin:0 .1rem;flex-shrink:0}
+.legend{display:flex;align-items:center;gap:.55rem;margin-left:auto;flex-wrap:wrap}
+.leg{display:flex;align-items:center;gap:.28rem;font-size:.63rem;color:#64748b}
+.leg-bar{width:14px;height:8px;border-radius:2px;flex-shrink:0}
 
-/* Gantt mini bar in task */
-.gantt-mini{display:flex;align-items:center;gap:.3rem;flex-shrink:0}
-.g-bar{height:4px;border-radius:2px;opacity:.7}
+/* ── Gantt Wrapper ── */
+.gantt-scroll{overflow:auto;max-height:calc(100vh - 210px);background:#fff;border-top:1px solid #e2e8f0}
+.gantt-tbl{border-collapse:collapse;table-layout:fixed;white-space:nowrap}
 
-/* Area colors */
-.area-이지원{background:#1a2d4a;color:#60a5fa;border:1px solid #1e3a5f}
-.area-사이버{background:#2d1a2d;color:#c084fc;border:1px solid #4c1d95}
-.area-콜센터{background:#1a2d2d;color:#34d399;border:1px solid #065f46}
-.area-인프라{background:#2d2a1a;color:#fbbf24;border:1px solid #92400e}
-.area-PMO{background:#1a1a2d;color:#94a3b8;border:1px solid #334155}
+/* ── Gantt Header ── */
+.gantt-tbl thead th{border:1px solid #e2e8f0;font-weight:600;user-select:none}
+.th-id{position:sticky;left:0;z-index:15;background:#1e293b;color:#94a3b8;font-size:.62rem;padding:.42rem .5rem;width:68px;min-width:68px;border-color:#334155 !important;text-align:left}
+.th-name{position:sticky;left:68px;z-index:15;background:#1e293b;color:#94a3b8;font-size:.62rem;padding:.42rem .75rem;width:265px;min-width:265px;border-color:#334155 !important;text-align:left}
+.th-month{background:#334155;color:#e2e8f0;font-size:.7rem;padding:.38rem .4rem;text-align:center;border-color:#475569 !important}
+.th-w{background:#f8fafc;color:#94a3b8;font-size:.58rem;padding:.28rem 0;text-align:center;width:30px;min-width:30px;max-width:30px;border-color:#e2e8f0 !important}
+.th-w-now{background:#fef3c7 !important;color:#92400e !important;font-weight:700}
 
-/* ── Tab 2: Requirements ── */
-.req-wrap{padding:1rem 1.5rem 2rem}
-.req-filter{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.85rem}
-.cat-btn{font-size:.68rem;padding:.2rem .6rem;border-radius:.25rem;border:1px solid #334155;background:#0f172a;color:#64748b;cursor:pointer;transition:all .15s}
-.cat-btn:hover,.cat-btn.on{color:#38bdf8;border-color:#38bdf8;background:#1e3a5f}
-table{width:100%;border-collapse:collapse;font-size:.75rem}
-th{background:#1e293b;color:#64748b;font-weight:600;padding:.45rem .6rem;text-align:left;border-bottom:1px solid #334155;white-space:nowrap;position:sticky;top:0;z-index:1}
-td{padding:.38rem .6rem;border-bottom:1px solid #1e293b;vertical-align:top;color:#94a3b8}
-tr:hover td{background:#1a2332}
-.req-id{font-family:monospace;font-size:.7rem;white-space:nowrap}
-.req-cat{font-size:.62rem;padding:.08rem .35rem;border-radius:.2rem;font-weight:600;white-space:nowrap}
-.cat-CSR{background:#1e3a5f;color:#38bdf8}.cat-SFR{background:#2d1a2d;color:#c084fc}
-.cat-PER{background:#1a2d2d;color:#34d399}.cat-INR{background:#2d2a1a;color:#fbbf24}
-.cat-DAR{background:#1a2d4a;color:#60a5fa}.cat-TER{background:#2d1a1a;color:#f87171}
-.cat-SER{background:#1a2d1a;color:#4ade80}.cat-QUR{background:#2a1a2d;color:#e879f9}
-.cat-COR{background:#2d2d1a;color:#facc15}.cat-PMR{background:#1a1a2d;color:#94a3b8}
-.req-wbs{font-size:.68rem;color:#475569}
-.done-chk{width:14px;height:14px;border-radius:.2rem;border:1.5px solid #334155;background:#0f172a;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
-.done-chk.on{background:#166534;border-color:#22c55e}
+/* ── Gantt Body ── */
+.gantt-tbl tbody tr:hover .td-id,
+.gantt-tbl tbody tr:hover .td-name{background:#f8fafc !important}
+.gantt-tbl tbody tr:hover .td-week{background:#fafafa}
 
-/* ── Tab 3: Staffing ── */
-.staff-wrap{padding:1rem 1.5rem 2rem}
-.staff-note{font-size:.72rem;color:#475569;margin-bottom:.85rem}
-.staff-table{width:100%;border-collapse:collapse;font-size:.75rem}
-.staff-table th{background:#1e293b;color:#64748b;font-weight:600;padding:.45rem .6rem;text-align:center;border:1px solid #334155;white-space:nowrap}
-.staff-table th.left{text-align:left}
-.staff-table td{padding:.38rem .6rem;border:1px solid #1e293b;text-align:center;color:#94a3b8}
-.staff-table td.left{text-align:left;color:#cbd5e1}
-.staff-table td.sub{background:#1a2332;font-weight:600;color:#64748b}
-.staff-table td.total{background:#1e293b;font-weight:700;color:#38bdf8}
-.mm-val{color:#38bdf8;font-weight:600}
-.mm-zero{color:#1e293b}
-.role-label{display:flex;flex-direction:column;gap:.1rem}
-.role-name{font-size:.78rem;font-weight:600;color:#e2e8f0}
-.role-area{font-size:.62rem;color:#475569}
+.td-id{position:sticky;left:0;z-index:10;background:#fff;border:1px solid #f1f5f9;border-right:1px solid #e2e8f0;padding:.22rem .5rem;font-size:.63rem;font-family:'Consolas',monospace;color:#94a3b8;width:68px;min-width:68px;vertical-align:middle}
+.td-name{position:sticky;left:68px;z-index:10;background:#fff;border:1px solid #f1f5f9;border-right:2px solid #e2e8f0;padding:.22rem .7rem;width:265px;min-width:265px;max-width:265px;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
+.td-week{border:1px solid #f1f5f9;width:30px;min-width:30px;max-width:30px;padding:0;vertical-align:middle;height:34px;cursor:default}
+.td-week.w-now{background:#fefce8}
+
+/* ── Row styles ── */
+tr.r-phase .td-id{background:#f8fafc;border-right-color:#cbd5e1;font-weight:700;color:#475569}
+tr.r-phase .td-name{background:#f8fafc;border-right-color:#cbd5e1}
+tr.r-phase .td-week{background:#fafafa}
+tr.r-milestone .td-id{background:#fffbeb}
+tr.r-milestone .td-name{background:#fffbeb}
+tr.r-milestone .td-week{background:#fffef0}
+
+/* ── Gantt Bar ── */
+.bar{height:14px;margin:10px 0;background:#3b82f6;border-radius:0}
+.bar-s{border-radius:4px 0 0 4px;margin-left:2px}
+.bar-e{border-radius:0 4px 4px 0;margin-right:2px}
+.bar-se{border-radius:4px;margin:10px 3px}
+.bar-phase{height:7px;margin:13.5px 0;border-radius:0;opacity:.3}
+.bar-phase.bar-s{border-radius:3px 0 0 3px;margin-left:1px}
+.bar-phase.bar-e{border-radius:0 3px 3px 0;margin-right:1px}
+.bar-phase.bar-se{border-radius:3px;margin:13.5px 2px}
+.bar-done{opacity:.5;background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.2) 0,rgba(255,255,255,.2) 3px,transparent 3px,transparent 7px)}
+
+/* ── Milestone ── */
+.ms{text-align:center;font-size:14px;color:#dc2626;line-height:34px;font-weight:900;cursor:default}
+
+/* ── Status badge ── */
+.sbadge{font-size:.54rem;padding:.06rem .3rem;border-radius:99px;font-weight:700;margin-left:.3rem;vertical-align:middle;white-space:nowrap}
+.sb-done{background:#dcfce7;color:#166534}.sb-doing{background:#dbeafe;color:#1d4ed8}
+.sb-review{background:#fef3c7;color:#92400e}.sb-todo{background:#f1f5f9;color:#94a3b8}
+
+.row-label{display:flex;align-items:center;gap:.3rem;min-width:0}
+.area-pip{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.row-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chv{font-size:.58rem;cursor:pointer;user-select:none;transition:transform .2s;color:#94a3b8;margin-right:1px;display:inline-block;flex-shrink:0}
+.chv.o{transform:rotate(90deg)}
+.hidden{display:none}
 </style>
 </head>
 <body>
 
-<header>
-  <h1>📋 컨설팅 프로젝트 WBS</h1>
-  <span class="badge">2026.03.23 착수</span>
-  <span class="badge amber">30주 · 210일</span>
-  <span class="badge green">진행중</span>
-  <a class="gh-link" href="https://github.com/love1533/repo_llm" target="_blank">
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-    GitHub
-  </a>
-</header>
-
-<div class="tabs">
-  <button class="tab-btn active" onclick="showTab('wbs',this)">① WBS 상세</button>
-  <button class="tab-btn" onclick="showTab('req',this)">② 요구사항 매핑</button>
-  <button class="tab-btn" onclick="showTab('staff',this)">③ 투입인력계획</button>
-</div>
-
-<!-- ════════════════ TAB 1: WBS ════════════════ -->
-<div class="tab-panel active" id="tab-wbs">
-
-<div class="toolbar">
-  <button class="tb-btn on" id="f-all" onclick="setFilter('all')">전체</button>
-  <button class="tb-btn" id="f-todo" onclick="setFilter('todo')">대기</button>
-  <button class="tb-btn" id="f-doing" onclick="setFilter('doing')">진행중</button>
-  <button class="tb-btn" id="f-review" onclick="setFilter('review')">검토중</button>
-  <button class="tb-btn" id="f-done" onclick="setFilter('done')">완료</button>
-  <span style="width:1px;height:16px;background:#334155;margin:0 .2rem"></span>
-  <button class="tb-btn" onclick="expandAll()">전체 펼치기</button>
-  <button class="tb-btn" onclick="collapseAll()">전체 접기</button>
-  <div class="progress-wrap">
-    <span id="prog-txt">0%</span>
-    <div class="pbar"><div class="pfill" id="prog-fill" style="width:0%"></div></div>
+<!-- ════ 비밀번호 게이트 ════ -->
+<div id="gate">
+  <div class="gate-box">
+    <div class="gate-logo">🔐</div>
+    <div class="gate-title">GCGF0323 프로젝트 WBS</div>
+    <div class="gate-sub">접근하려면 비밀번호를 입력하세요</div>
+    <input class="gate-input" type="password" id="pw"
+           placeholder="비밀번호 입력"
+           onkeydown="if(event.key==='Enter')auth()"/>
+    <button class="gate-btn" onclick="auth()">로그인</button>
+    <div class="gate-err" id="err"></div>
+    <div class="gate-hint">🔄 JIRA 자동 동기화 · 최종: 2026-03-17</div>
   </div>
 </div>
 
-<div class="stats-row">
-  <div class="sc"><div class="sc-label">전체 작업</div><div class="sc-val" id="s-total">0</div><div class="sc-sub">tasks</div></div>
-  <div class="sc"><div class="sc-label">완료</div><div class="sc-val" style="color:#4ade80" id="s-done">0</div><div class="sc-sub">completed</div></div>
-  <div class="sc"><div class="sc-label">진행중</div><div class="sc-val" style="color:#38bdf8" id="s-doing">0</div><div class="sc-sub">in progress</div></div>
-  <div class="sc"><div class="sc-label">마일스톤</div><div class="sc-val" style="color:#fbbf24">6</div><div class="sc-sub">◆ 이벤트</div></div>
-  <div class="sc"><div class="sc-label">사업 기간</div><div class="sc-val" style="color:#c084fc">30주</div><div class="sc-sub">2026.03~09</div></div>
-</div>
+<!-- ════ 메인 콘텐츠 ════ -->
+<div id="main">
 
-<div class="wbs-wrap" id="wbs-root"></div>
-</div>
+  <header class="app-header">
+    <h1>📋 프로젝트 WBS</h1>
+    <span class="hbadge hb-blue">GCGF0323</span>
+    <span class="hbadge hb-green" id="h-done">— 완료</span>
+    <span class="hbadge hb-amber" id="h-pct">—%</span>
+    <div class="sync"><span class="sync-dot"></span>2026-03-17 동기화</div>
+  </header>
 
-<!-- ════════════════ TAB 2: Requirements ════════════════ -->
-<div class="tab-panel" id="tab-req">
-<div class="req-wrap">
-  <div class="req-filter" id="req-filter">
-    <button class="cat-btn on" onclick="filterReq('ALL',this)">전체 (62)</button>
-    <button class="cat-btn" onclick="filterReq('CSR',this)">CSR 기능(20)</button>
-    <button class="cat-btn" onclick="filterReq('SFR',this)">SFR 소프트웨어(12)</button>
-    <button class="cat-btn" onclick="filterReq('PER',this)">PER 성능(5)</button>
-    <button class="cat-btn" onclick="filterReq('INR',this)">INR 인터페이스(5)</button>
-    <button class="cat-btn" onclick="filterReq('DAR',this)">DAR 데이터(5)</button>
-    <button class="cat-btn" onclick="filterReq('TER',this)">TER 기술(5)</button>
-    <button class="cat-btn" onclick="filterReq('SER',this)">SER 보안(5)</button>
-    <button class="cat-btn" onclick="filterReq('QUR',this)">QUR 품질(3)</button>
-    <button class="cat-btn" onclick="filterReq('COR',this)">COR 제약(1)</button>
-    <button class="cat-btn" onclick="filterReq('PMR',this)">PMR 관리(1)</button>
+  <div class="stats-strip">
+    <div class="stat"><div class="stat-val" id="s-total" style="color:#2563eb">—</div><div class="stat-lbl">전체</div></div>
+    <div class="stat"><div class="stat-val" id="s-done"  style="color:#16a34a">—</div><div class="stat-lbl">완료</div></div>
+    <div class="stat"><div class="stat-val" id="s-doing" style="color:#2563eb">—</div><div class="stat-lbl">진행중</div></div>
+    <div class="stat"><div class="stat-val" id="s-todo"  style="color:#94a3b8">—</div><div class="stat-lbl">대기</div></div>
+    <div class="stat"><div class="stat-val" style="color:#dc2626">6</div><div class="stat-lbl">마일스톤</div></div>
+    <div class="stat"><div class="stat-val" style="color:#7c3aed">28주</div><div class="stat-lbl">2026.03~09</div></div>
   </div>
-  <table id="req-table">
-    <thead><tr>
-      <th style="width:90px">요구사항ID</th>
-      <th style="width:52px">구분</th>
-      <th>요구사항명</th>
-      <th style="width:80px">업무영역</th>
-      <th>연결 WBS 작업</th>
-      <th style="width:52px">완료</th>
-    </tr></thead>
-    <tbody id="req-tbody"></tbody>
-  </table>
-</div>
-</div>
 
-<!-- ════════════════ TAB 3: Staffing ════════════════ -->
-<div class="tab-panel" id="tab-staff">
-<div class="staff-wrap">
-  <div class="staff-note">단위: MM(Man-Month) · 기준일: 2026.03.23 · M1=3월(부분), M2=4월, M3=5월, M4=6월, M5=7월, M6=8월, M7=9월(부분)</div>
-  <table class="staff-table" id="staff-table"></table>
-</div>
+  <div class="prog-strip">
+    <span class="prog-label">전체 진행률</span>
+    <div class="prog-bar"><div class="prog-fill" id="pfill" style="width:0%"></div></div>
+    <span class="prog-pct" id="ppct">0%</span>
+  </div>
+
+  <div class="toolbar">
+    <button class="tbtn on" id="f-all"    onclick="setF('all',this)">전체</button>
+    <button class="tbtn"    id="f-todo"   onclick="setF('todo',this)">대기</button>
+    <button class="tbtn"    id="f-doing"  onclick="setF('doing',this)">진행중</button>
+    <button class="tbtn"    id="f-review" onclick="setF('review',this)">검토중</button>
+    <button class="tbtn"    id="f-done"   onclick="setF('done',this)">완료</button>
+    <div class="tsep"></div>
+    <button class="tbtn" onclick="expAll()">전체 펼치기</button>
+    <button class="tbtn" onclick="colAll()">전체 접기</button>
+    <div class="legend">
+      <div class="leg"><div class="leg-bar" style="background:#3b82f6"></div>이지원</div>
+      <div class="leg"><div class="leg-bar" style="background:#7c3aed"></div>사이버</div>
+      <div class="leg"><div class="leg-bar" style="background:#10b981"></div>콜센터</div>
+      <div class="leg"><div class="leg-bar" style="background:#f59e0b"></div>인프라</div>
+      <div class="leg"><div class="leg-bar" style="background:#64748b"></div>PMO</div>
+      <div class="leg"><span style="color:#dc2626;font-size:12px;line-height:1">◆</span>마일스톤</div>
+    </div>
+  </div>
+
+  <div class="gantt-scroll">
+    <table class="gantt-tbl" id="gtbl"></table>
+  </div>
 </div>
 
 <script>
-// ══════════════════════════════════════════════════════════
-// DATA
-// ══════════════════════════════════════════════════════════
-const PHASES = [
-  { id:'1.1', name:'착수 단계', color:'#94a3b8', phColor:'#334155',
-    weeks:'W01~W02', tasks:[
-      {id:'1.1.1',name:'계약 체결 및 착수신고',area:'PMO',status:'done',weeks:'W01',reqs:['PMR-001'],desc:'계약서 날인, 착수계 제출',subs:['계약서 날인','착수계 제출','보험 가입']},
-      {id:'1.1.2',name:'프로젝트 계획서(PMP) 작성',area:'PMO',status:'done',weeks:'W01~W02',reqs:['PMR-001'],desc:'WBS, 위험관리계획, 품질계획 포함',subs:['WBS 초안 작성','위험관리 계획','품질관리 계획','의사소통 계획']},
-      {id:'1.1.3',name:'팀 구성 및 역할 배정',area:'PMO',status:'done',weeks:'W01',reqs:[],desc:'PM/PMO/각 영역 개발자 역할 확정',subs:['조직도 확정','연락망 구성','협업툴 설정']},
-      {id:'1.1.4',name:'개발환경 및 형상관리 구성',area:'인프라',status:'doing',weeks:'W01~W02',reqs:['TER-001'],desc:'Git 저장소, CI/CD 파이프라인, 개발 서버 구성',subs:['Git 저장소 생성','CI/CD 설정','개발 서버 구성','VPN 접속 환경']},
-      {id:'M1',name:'◆ 착수보고',area:'PMO',status:'doing',weeks:'W02',reqs:[],desc:'발주기관 대상 착수보고회 실시',milestone:true},
-    ]
-  },
-  { id:'1.2', name:'분석 단계', color:'#60a5fa', phColor:'#1e3a5f',
-    weeks:'W02~W08', tasks:[
-      {id:'1.2.1',name:'현황 및 AS-IS 시스템 분석',area:'PMO',status:'doing',weeks:'W02~W04',reqs:['CSR-001','SFR-001'],desc:'기존 시스템 기능/데이터/인터페이스 현황 파악',subs:['시스템 현황 문서 검토','담당자 인터뷰','현황 보고서 작성']},
-      {id:'1.2.2',name:'이지원 업무 요구사항 분석',area:'이지원',status:'doing',weeks:'W03~W05',reqs:['CSR-001','CSR-002','CSR-003','CSR-004','CSR-005','CSR-006','CSR-007','CSR-008'],desc:'전자결재/문서관리/공문서 처리 업무 분석',subs:['결재 프로세스 분석','문서 분류 체계 분석','외부 연계 현황 파악','모바일 요구사항 수집']},
-      {id:'1.2.3',name:'사이버보안 현황 진단',area:'사이버',status:'todo',weeks:'W03~W05',reqs:['SFR-001','SFR-002','SFR-003','SFR-004','SER-001','SER-002'],desc:'보안 취약점 스캔, 접근권한 현황 분석',subs:['보안 체크리스트 점검','취약점 스캐닝','보안 요구사항 도출']},
-      {id:'1.2.4',name:'콜센터 업무 분석',area:'콜센터',status:'todo',weeks:'W03~W05',reqs:['CSR-009','CSR-010','CSR-011','CSR-012','CSR-013'],desc:'CTI/IVR 현황 및 상담 업무 프로세스 분석',subs:['상담 유형 분류','CTI 연동 현황 파악','IVR 시나리오 현황 수집','상담 통계 요구사항']},
-      {id:'1.2.5',name:'공통 인프라 현황 분석',area:'인프라',status:'todo',weeks:'W03~W05',reqs:['INR-001','INR-002','TER-001'],desc:'서버/네트워크/스토리지 현황 및 성능 측정',subs:['서버 현황 문서화','네트워크 토폴로지 파악','스토리지 용량 분석']},
-      {id:'1.2.6',name:'데이터 현황 및 마이그레이션 분석',area:'이지원',status:'todo',weeks:'W04~W06',reqs:['DAR-001','DAR-002'],desc:'기존 데이터 품질 분석, 이관 대상 도출',subs:['테이블 목록 현황','데이터 품질 점검','이관 대상 및 방법 결정']},
-      {id:'1.2.7',name:'요구사항 정의서(SRS) 작성',area:'PMO',status:'todo',weeks:'W05~W08',reqs:['CSR-001','SFR-001','PER-001','INR-001','DAR-001'],desc:'전체 요구사항 정의서 작성 및 발주기관 확인',subs:['기능 요구사항 정리','비기능 요구사항 정리','발주기관 검토','요구사항 확정 서명']},
-      {id:'1.2.8',name:'UI/UX 사용성 분석',area:'이지원',status:'todo',weeks:'W05~W07',reqs:['CSR-014','CSR-015'],desc:'사용자 인터뷰 기반 사용성 문제점 도출',subs:['사용자 그룹 인터뷰','현행 화면 UX 리뷰','개선 방향 도출']},
-      {id:'M2',name:'◆ 분석단계 감리 (감리 1단계)',area:'PMO',status:'todo',weeks:'W08',reqs:[],desc:'1단계 감리 수감 및 보완조치',milestone:true},
-    ]
-  },
-  { id:'1.3', name:'설계 단계', color:'#c084fc', phColor:'#4c1d95',
-    weeks:'W08~W14', tasks:[
-      {id:'1.3.1',name:'시스템 아키텍처 설계',area:'인프라',status:'todo',weeks:'W08~W10',reqs:['TER-001','TER-002','TER-003'],desc:'전체 시스템 구성도 및 기술 스택 확정',subs:['HW 아키텍처 설계','SW 아키텍처 설계','보안 아키텍처 포함']},
-      {id:'1.3.2',name:'이지원 상세 설계',area:'이지원',status:'todo',weeks:'W09~W13',reqs:['CSR-001','CSR-002','CSR-003','DAR-003'],desc:'화면설계서, DB설계서, 인터페이스 설계서',subs:['화면설계서 작성 (와이어프레임)','DB 논리설계','DB 물리설계','API 인터페이스 설계']},
-      {id:'1.3.3',name:'UI/UX 디자인 시안',area:'이지원',status:'todo',weeks:'W09~W12',reqs:['CSR-014','CSR-015','QUR-001'],desc:'메인화면, 공통컴포넌트, 업무화면 디자인',subs:['디자인 가이드 작성','주요 화면 시안 제작','반응형 레이아웃 설계','발주기관 디자인 확정']},
-      {id:'1.3.4',name:'사이버보안 설계',area:'사이버',status:'todo',weeks:'W09~W12',reqs:['SFR-001','SFR-002','SER-001','SER-002','SER-003','SER-004'],desc:'IAM, 암호화, 감사로그 설계',subs:['접근제어 설계','암호화 키 관리 설계','보안 감사 로그 설계','개인정보보호 설계']},
-      {id:'1.3.5',name:'콜센터 시스템 설계',area:'콜센터',status:'todo',weeks:'W09~W12',reqs:['CSR-009','CSR-010','CSR-011','CSR-012','INR-003'],desc:'CTI 연동 설계, IVR 시나리오 설계, 상담화면 설계',subs:['CTI 연동 I/F 설계','IVR 시나리오 설계','상담 화면 설계','통계 리포트 설계']},
-      {id:'1.3.6',name:'공통 인프라 설계',area:'인프라',status:'todo',weeks:'W09~W11',reqs:['INR-001','INR-002','TER-004'],desc:'서버 구성, 네트워크 설계, DR 설계',subs:['서버 사이징','네트워크 구성도 작성','DR 설계','스토리지 설계']},
-      {id:'1.3.7',name:'인터페이스 설계 (I/F)',area:'PMO',status:'todo',weeks:'W10~W13',reqs:['INR-001','INR-002','INR-003','INR-004'],desc:'외부 시스템 연계 I/F 정의서',subs:['연계 시스템 목록 확정','I/F 방식 결정','I/F 설계서 작성','연계기관 협의']},
-      {id:'1.3.8',name:'데이터 마이그레이션 설계',area:'이지원',status:'todo',weeks:'W11~W13',reqs:['DAR-001','DAR-002','DAR-004'],desc:'데이터 이관 절차 및 검증 방법 설계',subs:['이관 매핑 설계','이관 프로그램 설계','검증 기준 수립']},
-      {id:'1.3.9',name:'테스트 계획서 작성',area:'PMO',status:'todo',weeks:'W12~W14',reqs:['QUR-002','QUR-003'],desc:'단위/통합/인수 테스트 계획 수립',subs:['테스트 케이스 설계 기준','테스트 환경 계획','일정 계획']},
-      {id:'M3',name:'◆ 설계단계 감리 (감리 2단계)',area:'PMO',status:'todo',weeks:'W14',reqs:[],desc:'2단계 감리 수감 및 보완조치',milestone:true},
-    ]
-  },
-  { id:'1.4', name:'구현 단계', color:'#34d399', phColor:'#065f46',
-    weeks:'W14~W23', tasks:[
-      {id:'1.4.1',name:'공통 인프라 구축',area:'인프라',status:'todo',weeks:'W14~W17',reqs:['TER-001','TER-002','INR-001'],desc:'서버 도입/설치, 네트워크 구성, 기본 SW 설치',subs:['서버 도입 및 설치','OS 및 WAS 설치','DB 서버 설치','네트워크 구성','SSL 인증서 설치']},
-      {id:'1.4.2',name:'이지원 – 전자결재 개발',area:'이지원',status:'todo',weeks:'W14~W20',reqs:['CSR-001','CSR-002','CSR-003','CSR-006'],desc:'기안-검토-결재-시행 워크플로우 구현',subs:['결재선 설정 기능','기안 화면 개발','결재 화면 개발','완결/반려 처리','결재 이력 조회']},
-      {id:'1.4.3',name:'이지원 – 문서관리 개발',area:'이지원',status:'todo',weeks:'W15~W21',reqs:['CSR-003','CSR-004','CSR-005','CSR-007'],desc:'문서 등록/분류/검색/공유/보존 기능 구현',subs:['문서 등록/수정/삭제','문서 분류 코드 관리','전문 검색 엔진 연동','문서 공유 기능','보존연한 관리']},
-      {id:'1.4.4',name:'이지원 – 모바일 결재 개발',area:'이지원',status:'todo',weeks:'W17~W21',reqs:['CSR-008'],desc:'모바일 웹/앱 기반 간편 결재 기능',subs:['반응형 UI 구현','모바일 Push 알림','모바일 결재 워크플로우']},
-      {id:'1.4.5',name:'사이버보안 구현',area:'사이버',status:'todo',weeks:'W14~W20',reqs:['SFR-001','SFR-002','SFR-003','SFR-004','SER-001','SER-002','SER-003','SER-004'],desc:'인증강화(OTP/공인인증), 접근제어, 보안로그 구현',subs:['IAM 모듈 개발','OTP 인증 연동','접근제어 규칙 설정','보안 감사 로그 구현','암호화 모듈 적용']},
-      {id:'1.4.6',name:'콜센터 시스템 구현',area:'콜센터',status:'todo',weeks:'W14~W21',reqs:['CSR-009','CSR-010','CSR-011','CSR-012','CSR-013','INR-003'],desc:'CTI 연동, IVR 설정, 상담화면, 통계 기능 구현',subs:['CTI 미들웨어 연동','IVR 시나리오 적용','상담 이력 화면 개발','통계/리포트 개발','녹취 연동']},
-      {id:'1.4.7',name:'외부 I/F 개발',area:'이지원',status:'todo',weeks:'W16~W21',reqs:['INR-001','INR-002','INR-003','INR-004','INR-005'],desc:'행정망 연계, SSO 연동, 외부 기관 API 연동',subs:['SSO 연동 개발','행정정보시스템 연계','외부 API 연동','연계 오류 처리']},
-      {id:'1.4.8',name:'데이터 마이그레이션 프로그램 개발',area:'이지원',status:'todo',weeks:'W17~W22',reqs:['DAR-001','DAR-002','DAR-004','DAR-005'],desc:'구 시스템 데이터 이관 스크립트 및 검증 프로그램',subs:['이관 스크립트 개발','검증 프로그램 개발','시험 이관 실시 (1차)']},
-      {id:'1.4.9',name:'UI/UX 퍼블리싱 적용',area:'이지원',status:'todo',weeks:'W15~W21',reqs:['CSR-014','CSR-015','QUR-001'],desc:'확정 디자인 가이드 기반 전 화면 마크업/스타일 적용',subs:['공통 컴포넌트 퍼블리싱','업무 화면 퍼블리싱','접근성(WCAG) 적용']},
-      {id:'1.4.10',name:'단위 테스트',area:'PMO',status:'todo',weeks:'W19~W23',reqs:['QUR-002'],desc:'개발 완료 모듈별 단위 테스트 수행',subs:['단위 테스트 케이스 실행','결함 등록 및 수정','테스트 완료 확인서']},
-    ]
-  },
-  { id:'1.5', name:'테스트 단계', color:'#fbbf24', phColor:'#92400e',
-    weeks:'W23~W27', tasks:[
-      {id:'1.5.1',name:'통합 테스트',area:'PMO',status:'todo',weeks:'W23~W25',reqs:['QUR-002','QUR-003','PER-001'],desc:'전 모듈 연계 통합 테스트 및 결함 처리',subs:['통합 테스트 케이스 실행','결함 등록 및 우선순위 관리','긴급 결함 수정','재테스트']},
-      {id:'1.5.2',name:'성능 테스트',area:'인프라',status:'todo',weeks:'W24~W25',reqs:['PER-001','PER-002','PER-003','PER-004','PER-005'],desc:'동시 사용자 부하 테스트, 응답속도 측정',subs:['부하 테스트 시나리오 작성','JMeter 테스트 실행','성능 튜닝 (DB/WAS)','최종 성능 확인서']},
-      {id:'1.5.3',name:'보안 취약점 점검',area:'사이버',status:'todo',weeks:'W24~W25',reqs:['SER-001','SER-002','SER-003','SER-004'],desc:'OWASP Top10, 소스코드 보안 점검',subs:['자동화 보안 스캔','수동 취약점 점검','보완 조치 완료','보안 점검 결과서']},
-      {id:'1.5.4',name:'사용자 인수 테스트 (UAT)',area:'PMO',status:'todo',weeks:'W25~W26',reqs:['QUR-003','COR-001'],desc:'발주기관 업무 담당자 직접 테스트 수행',subs:['UAT 시나리오 배포','UAT 환경 지원','결함 처리 및 재확인','인수 확인서 징구']},
-      {id:'1.5.5',name:'데이터 마이그레이션 시험이관 (2차)',area:'이지원',status:'todo',weeks:'W25~W26',reqs:['DAR-001','DAR-002'],desc:'실 데이터 이관 리허설 및 검증',subs:['이관 데이터 정합성 검증','이관 소요시간 측정','이관 절차서 최종 확정']},
-      {id:'M4',name:'◆ 구현단계 감리 (감리 3단계)',area:'PMO',status:'todo',weeks:'W26',reqs:[],desc:'3단계 감리 수감 및 보완조치',milestone:true},
-    ]
-  },
-  { id:'1.6', name:'안정화 및 완료', color:'#f87171', phColor:'#7f1d1d',
-    weeks:'W27~W30', tasks:[
-      {id:'1.6.1',name:'운영 환경 최종 구성',area:'인프라',status:'todo',weeks:'W27',reqs:['TER-001','TER-002'],desc:'운영 서버 최종 배포 및 설정 완료',subs:['운영 서버 배포','DNS/도메인 설정','SSL 최종 적용','모니터링 설정']},
-      {id:'1.6.2',name:'데이터 마이그레이션 본이관',area:'이지원',status:'todo',weeks:'W27',reqs:['DAR-001','DAR-002','DAR-005'],desc:'구 시스템 데이터 실 환경 이관 및 검증',subs:['이관 시작 공지','데이터 본이관 실행','이관 결과 검증','이관 완료 보고']},
-      {id:'M5',name:'◆ 시스템 오픈 (Go-Live)',area:'PMO',status:'todo',weeks:'W27',reqs:[],desc:'서비스 공식 오픈 및 운영 전환',milestone:true},
-      {id:'1.6.3',name:'사용자 교육',area:'PMO',status:'todo',weeks:'W27~W28',reqs:['TER-005'],desc:'시스템 사용자 대상 교육 실시',subs:['교육 자료 제작','관리자 교육 (1일)','일반 사용자 교육 (2일)','교육 결과 보고']},
-      {id:'1.6.4',name:'운영 매뉴얼 작성',area:'PMO',status:'todo',weeks:'W27~W29',reqs:['TER-005'],desc:'시스템 운영 매뉴얼, 사용자 매뉴얼 작성',subs:['관리자 매뉴얼','사용자 매뉴얼','장애 대응 매뉴얼']},
-      {id:'1.6.5',name:'안정화 운영 지원',area:'PMO',status:'todo',weeks:'W27~W30',reqs:[],desc:'오픈 후 집중 안정화 지원 (4주)',subs:['전담 지원팀 운영','장애 즉시 대응','성능 모니터링','주간 안정화 보고']},
-      {id:'1.6.6',name:'최종 산출물 정리',area:'PMO',status:'todo',weeks:'W28~W30',reqs:['PMR-001'],desc:'전체 사업 산출물 최종 정리 및 납품',subs:['산출물 목록 확인','문서 최종 버전 정리','결과물 압축 및 납품']},
-      {id:'M6',name:'◆ 완료보고',area:'PMO',status:'todo',weeks:'W30',reqs:[],desc:'최종 완료보고회 실시 및 사업 종료',milestone:true},
-    ]
-  },
+// ── 인증 ────────────────────────────────────────────────────
+const HASH = "3e4df03324f19acc8efdb00a9f162cb279a64e06dc662ac5fcd6d17ca5917b83";
+async function sha256(s){
+  const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));
+  return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+async function auth(){
+  const v=document.getElementById('pw').value;
+  if(!v){err('비밀번호를 입력해주세요');return;}
+  if(await sha256(v)===HASH){
+    sessionStorage.setItem('wbs','1');
+    show();
+  } else {
+    err('비밀번호가 올바르지 않습니다');
+    document.getElementById('pw').value='';
+    document.getElementById('pw').focus();
+  }
+}
+function err(m){const e=document.getElementById('err');e.textContent=m;setTimeout(()=>e.textContent='',2500)}
+function show(){
+  document.getElementById('gate').style.display='none';
+  document.getElementById('main').style.display='block';
+  init();
+}
+if(sessionStorage.getItem('wbs')==='1') show();
+else document.getElementById('pw').focus();
+
+// ── 데이터 ──────────────────────────────────────────────────
+const TW = 28; // 총 주수
+const TODAY_W = 0; // 오늘(3/17)은 프로젝트 시작 전
+
+const MONTHS=[
+  {n:'3월',s:1,e:2},{n:'4월',s:3,e:6},{n:'5월',s:7,e:10},
+  {n:'6월',s:11,e:14},{n:'7월',s:15,e:19},
+  {n:'8월',s:20,e:23},{n:'9월',s:24,e:28}
 ];
 
-// Requirements data
-const REQS = [
-  // CSR 기능요구사항 (20)
-  {id:'CSR-001',cat:'CSR',name:'전자결재 기안 기능',area:'이지원',wbs:'1.2.2, 1.3.2, 1.4.2'},
-  {id:'CSR-002',cat:'CSR',name:'결재 워크플로우 관리',area:'이지원',wbs:'1.2.2, 1.3.2, 1.4.2'},
-  {id:'CSR-003',cat:'CSR',name:'문서 분류 및 보존 관리',area:'이지원',wbs:'1.2.2, 1.3.2, 1.4.3'},
-  {id:'CSR-004',cat:'CSR',name:'문서 검색 기능 (전문검색)',area:'이지원',wbs:'1.2.2, 1.4.3'},
-  {id:'CSR-005',cat:'CSR',name:'문서 공유 및 협업 기능',area:'이지원',wbs:'1.2.2, 1.4.3'},
-  {id:'CSR-006',cat:'CSR',name:'결재선 등록 및 관리',area:'이지원',wbs:'1.2.2, 1.3.2, 1.4.2'},
-  {id:'CSR-007',cat:'CSR',name:'외부 공문서 연계 처리',area:'이지원',wbs:'1.2.2, 1.4.3, 1.4.7'},
-  {id:'CSR-008',cat:'CSR',name:'모바일 결재 지원',area:'이지원',wbs:'1.2.2, 1.4.4'},
-  {id:'CSR-009',cat:'CSR',name:'상담 콜 인입 및 배분 관리',area:'콜센터',wbs:'1.2.4, 1.3.5, 1.4.6'},
-  {id:'CSR-010',cat:'CSR',name:'CTI 시스템 연동',area:'콜센터',wbs:'1.2.4, 1.3.5, 1.4.6'},
-  {id:'CSR-011',cat:'CSR',name:'IVR 시나리오 관리',area:'콜센터',wbs:'1.2.4, 1.3.5, 1.4.6'},
-  {id:'CSR-012',cat:'CSR',name:'상담 이력 관리',area:'콜센터',wbs:'1.2.4, 1.3.5, 1.4.6'},
-  {id:'CSR-013',cat:'CSR',name:'상담 통계 및 리포트',area:'콜센터',wbs:'1.2.4, 1.4.6'},
-  {id:'CSR-014',cat:'CSR',name:'UI 반응형 웹 지원',area:'이지원',wbs:'1.2.8, 1.3.3, 1.4.9'},
-  {id:'CSR-015',cat:'CSR',name:'사용자 대시보드 제공',area:'이지원',wbs:'1.2.8, 1.3.3, 1.4.9'},
-  {id:'CSR-016',cat:'CSR',name:'공지사항/게시판 관리',area:'이지원',wbs:'1.3.2, 1.4.3'},
-  {id:'CSR-017',cat:'CSR',name:'권한별 메뉴 접근 제어',area:'사이버',wbs:'1.3.4, 1.4.5'},
-  {id:'CSR-018',cat:'CSR',name:'사용자 계정 관리',area:'사이버',wbs:'1.3.4, 1.4.5'},
-  {id:'CSR-019',cat:'CSR',name:'시스템 공지 및 팝업 관리',area:'이지원',wbs:'1.3.2, 1.4.3'},
-  {id:'CSR-020',cat:'CSR',name:'통합검색 기능',area:'이지원',wbs:'1.3.2, 1.4.3'},
-  // SFR (12)
-  {id:'SFR-001',cat:'SFR',name:'사용자 인증 강화 (MFA/OTP)',area:'사이버',wbs:'1.2.3, 1.3.4, 1.4.5'},
-  {id:'SFR-002',cat:'SFR',name:'역할기반 접근제어 (RBAC)',area:'사이버',wbs:'1.2.3, 1.3.4, 1.4.5'},
-  {id:'SFR-003',cat:'SFR',name:'보안 감사 로그 관리',area:'사이버',wbs:'1.2.3, 1.3.4, 1.4.5'},
-  {id:'SFR-004',cat:'SFR',name:'전송 구간 암호화 (TLS)',area:'사이버',wbs:'1.3.4, 1.4.5'},
-  {id:'SFR-005',cat:'SFR',name:'비밀번호 정책 적용',area:'사이버',wbs:'1.3.4, 1.4.5'},
-  {id:'SFR-006',cat:'SFR',name:'세션 관리 기능',area:'사이버',wbs:'1.3.4, 1.4.5'},
-  {id:'SFR-007',cat:'SFR',name:'자동 로그아웃 기능',area:'사이버',wbs:'1.3.4, 1.4.5'},
-  {id:'SFR-008',cat:'SFR',name:'IP 접근 제한 기능',area:'사이버',wbs:'1.3.4, 1.4.5'},
-  {id:'SFR-009',cat:'SFR',name:'개인정보 마스킹 처리',area:'사이버',wbs:'1.3.4, 1.4.5'},
-  {id:'SFR-010',cat:'SFR',name:'데이터 저장 암호화',area:'사이버',wbs:'1.3.4, 1.4.5'},
-  {id:'SFR-011',cat:'SFR',name:'침입탐지 시스템 연동',area:'사이버',wbs:'1.3.1, 1.4.5'},
-  {id:'SFR-012',cat:'SFR',name:'악성코드 탐지 기능',area:'사이버',wbs:'1.4.5, 1.5.3'},
-  // PER (5)
-  {id:'PER-001',cat:'PER',name:'동시접속 500명 응답 3초 이내',area:'인프라',wbs:'1.3.1, 1.4.1, 1.5.2'},
-  {id:'PER-002',cat:'PER',name:'화면 로딩 시간 2초 이내',area:'인프라',wbs:'1.4.1, 1.5.2'},
-  {id:'PER-003',cat:'PER',name:'DB 쿼리 응답 1초 이내',area:'인프라',wbs:'1.3.6, 1.5.2'},
-  {id:'PER-004',cat:'PER',name:'파일 업로드 속도 기준 충족',area:'인프라',wbs:'1.4.1, 1.5.2'},
-  {id:'PER-005',cat:'PER',name:'시스템 가용성 99.5% 이상',area:'인프라',wbs:'1.3.6, 1.5.2'},
-  // INR (5)
-  {id:'INR-001',cat:'INR',name:'행정정보시스템 연계',area:'이지원',wbs:'1.2.5, 1.3.7, 1.4.7'},
-  {id:'INR-002',cat:'INR',name:'SSO (통합인증) 연동',area:'사이버',wbs:'1.2.5, 1.3.7, 1.4.7'},
-  {id:'INR-003',cat:'INR',name:'CTI 시스템 I/F',area:'콜센터',wbs:'1.3.5, 1.3.7, 1.4.6'},
-  {id:'INR-004',cat:'INR',name:'외부 공문 수발신 연계',area:'이지원',wbs:'1.3.7, 1.4.7'},
-  {id:'INR-005',cat:'INR',name:'문자/메일 발송 연계',area:'이지원',wbs:'1.3.7, 1.4.7'},
-  // DAR (5)
-  {id:'DAR-001',cat:'DAR',name:'구 시스템 데이터 마이그레이션',area:'이지원',wbs:'1.2.6, 1.3.8, 1.4.8, 1.5.5, 1.6.2'},
-  {id:'DAR-002',cat:'DAR',name:'데이터 정합성 검증',area:'이지원',wbs:'1.3.8, 1.4.8, 1.5.5'},
-  {id:'DAR-003',cat:'DAR',name:'데이터 백업 및 복구 계획',area:'인프라',wbs:'1.3.6, 1.4.1'},
-  {id:'DAR-004',cat:'DAR',name:'이관 데이터 클렌징',area:'이지원',wbs:'1.3.8, 1.4.8'},
-  {id:'DAR-005',cat:'DAR',name:'이관 후 데이터 검증 기준',area:'이지원',wbs:'1.4.8, 1.5.5, 1.6.2'},
-  // TER (5)
-  {id:'TER-001',cat:'TER',name:'개발 환경 및 형상관리 체계',area:'인프라',wbs:'1.1.4, 1.3.1, 1.4.1'},
-  {id:'TER-002',cat:'TER',name:'서버 이중화 구성',area:'인프라',wbs:'1.3.6, 1.4.1'},
-  {id:'TER-003',cat:'TER',name:'MSA/API 게이트웨이 적용',area:'인프라',wbs:'1.3.1, 1.4.1'},
-  {id:'TER-004',cat:'TER',name:'모니터링 시스템 구축',area:'인프라',wbs:'1.3.6, 1.4.1, 1.6.1'},
-  {id:'TER-005',cat:'TER',name:'운영/사용자 매뉴얼 작성',area:'PMO',wbs:'1.6.3, 1.6.4'},
-  // SER (5)
-  {id:'SER-001',cat:'SER',name:'OWASP Top10 취약점 제거',area:'사이버',wbs:'1.3.4, 1.4.5, 1.5.3'},
-  {id:'SER-002',cat:'SER',name:'개인정보보호법 준수',area:'사이버',wbs:'1.3.4, 1.4.5'},
-  {id:'SER-003',cat:'SER',name:'전자서명 법령 준수',area:'사이버',wbs:'1.3.4, 1.4.5'},
-  {id:'SER-004',cat:'SER',name:'보안 취약점 점검 수감',area:'사이버',wbs:'1.5.3'},
-  {id:'SER-005',cat:'SER',name:'클라우드 보안 인증 기준',area:'사이버',wbs:'1.3.4, 1.4.5'},
-  // QUR (3)
-  {id:'QUR-001',cat:'QUR',name:'웹 접근성 WCAG 2.1 AA 준수',area:'이지원',wbs:'1.3.3, 1.4.9'},
-  {id:'QUR-002',cat:'QUR',name:'단위/통합 테스트 커버리지 80% 이상',area:'PMO',wbs:'1.4.10, 1.5.1'},
-  {id:'QUR-003',cat:'QUR',name:'사용자 인수 테스트 수행',area:'PMO',wbs:'1.5.4'},
-  // COR (1)
-  {id:'COR-001',cat:'COR',name:'납기일 준수 (2026.09.30)',area:'PMO',wbs:'전체'},
-  // PMR (1)
-  {id:'PMR-001',cat:'PMR',name:'프로젝트 관리 계획 수립 및 이행',area:'PMO',wbs:'1.1.2, 1.6.6'},
+const AC={이지원:'#3b82f6',사이버:'#7c3aed',콜센터:'#10b981',인프라:'#f59e0b',PMO:'#64748b'};
+const SL={done:'완료',doing:'진행중',review:'검토중',todo:'대기'};
+const SC={done:'sb-done',doing:'sb-doing',review:'sb-review',todo:'sb-todo'};
+
+const D=[
+  // ─ P1 착수 ─────────────────────────────────────────────
+  {id:'P1',   n:'착수 단계',              t:'p',area:'PMO',   s:1, e:2,  st:'done'},
+  {id:'1.1.1',n:'계약 체결 및 착수신고', t:'t',area:'PMO',   s:1, e:1,  st:'done'},
+  {id:'1.1.2',n:'프로젝트 계획서(PMP) 작성',t:'t',area:'PMO',s:1,e:2,  st:'done'},
+  {id:'1.1.3',n:'팀 구성 및 역할 배정',  t:'t',area:'PMO',   s:1, e:1,  st:'done'},
+  {id:'1.1.4',n:'개발환경·형상관리 구성',t:'t',area:'인프라', s:1, e:2,  st:'doing'},
+  {id:'M1',   n:'착수보고',               t:'m',area:'PMO',   s:2, e:2,  st:'done'},
+  // ─ P2 분석 ─────────────────────────────────────────────
+  {id:'P2',   n:'분석 단계',              t:'p',area:'PMO',   s:2, e:8,  st:'doing'},
+  {id:'1.2.1',n:'AS-IS 시스템 현황 분석',t:'t',area:'PMO',   s:2, e:4,  st:'doing'},
+  {id:'1.2.2',n:'이지원 업무 요구사항 분석',t:'t',area:'이지원',s:3,e:5,st:'doing'},
+  {id:'1.2.3',n:'사이버보안 현황 진단',   t:'t',area:'사이버', s:3, e:5,  st:'todo'},
+  {id:'1.2.4',n:'콜센터 업무 분석',       t:'t',area:'콜센터', s:3, e:5,  st:'todo'},
+  {id:'1.2.5',n:'공통 인프라 현황 분석',  t:'t',area:'인프라', s:3, e:5,  st:'todo'},
+  {id:'1.2.6',n:'데이터 현황 및 마이그레이션 분석',t:'t',area:'이지원',s:4,e:6,st:'todo'},
+  {id:'1.2.7',n:'요구사항 정의서(SRS) 작성',t:'t',area:'PMO',s:5,e:8,  st:'todo'},
+  {id:'1.2.8',n:'UI/UX 사용성 분석',     t:'t',area:'이지원', s:5, e:7,  st:'todo'},
+  {id:'M2',   n:'분석단계 감리 (1단계)',  t:'m',area:'PMO',   s:8, e:8,  st:'todo'},
+  // ─ P3 설계 ─────────────────────────────────────────────
+  {id:'P3',   n:'설계 단계',              t:'p',area:'PMO',   s:8, e:14, st:'todo'},
+  {id:'1.3.1',n:'시스템 아키텍처 설계',  t:'t',area:'인프라', s:8, e:10, st:'todo'},
+  {id:'1.3.2',n:'이지원 상세 설계',       t:'t',area:'이지원', s:9, e:13, st:'todo'},
+  {id:'1.3.3',n:'UI/UX 디자인 시안',     t:'t',area:'이지원', s:9, e:12, st:'todo'},
+  {id:'1.3.4',n:'사이버보안 설계',        t:'t',area:'사이버', s:9, e:12, st:'todo'},
+  {id:'1.3.5',n:'콜센터 시스템 설계',     t:'t',area:'콜센터', s:9, e:12, st:'todo'},
+  {id:'1.3.6',n:'공통 인프라 설계',       t:'t',area:'인프라', s:9, e:11, st:'todo'},
+  {id:'1.3.7',n:'인터페이스 설계 (I/F)', t:'t',area:'PMO',  s:10, e:13, st:'todo'},
+  {id:'1.3.8',n:'데이터 마이그레이션 설계',t:'t',area:'이지원',s:11,e:13,st:'todo'},
+  {id:'1.3.9',n:'테스트 계획서 작성',     t:'t',area:'PMO',  s:12, e:14, st:'todo'},
+  {id:'M3',   n:'설계단계 감리 (2단계)',  t:'m',area:'PMO',  s:14, e:14, st:'todo'},
+  // ─ P4 구현 ─────────────────────────────────────────────
+  {id:'P4',    n:'구현 단계',             t:'p',area:'PMO',  s:14, e:23, st:'todo'},
+  {id:'1.4.1', n:'공통 인프라 구축',      t:'t',area:'인프라',s:14, e:17, st:'todo'},
+  {id:'1.4.2', n:'이지원 — 전자결재 개발',t:'t',area:'이지원',s:14, e:20, st:'todo'},
+  {id:'1.4.3', n:'이지원 — 문서관리 개발',t:'t',area:'이지원',s:15, e:21, st:'todo'},
+  {id:'1.4.4', n:'이지원 — 모바일 결재',  t:'t',area:'이지원',s:17, e:21, st:'todo'},
+  {id:'1.4.5', n:'사이버보안 구현',        t:'t',area:'사이버',s:14, e:20, st:'todo'},
+  {id:'1.4.6', n:'콜센터 시스템 구현',     t:'t',area:'콜센터',s:14, e:21, st:'todo'},
+  {id:'1.4.7', n:'외부 I/F 개발',         t:'t',area:'이지원',s:16, e:21, st:'todo'},
+  {id:'1.4.8', n:'데이터 마이그레이션 개발',t:'t',area:'이지원',s:17,e:22, st:'todo'},
+  {id:'1.4.9', n:'UI/UX 퍼블리싱 적용',   t:'t',area:'이지원',s:15, e:21, st:'todo'},
+  {id:'1.4.10',n:'단위 테스트',            t:'t',area:'PMO',  s:19, e:23, st:'todo'},
+  // ─ P5 테스트 ───────────────────────────────────────────
+  {id:'P5',   n:'테스트 단계',             t:'p',area:'PMO',  s:23, e:27, st:'todo'},
+  {id:'1.5.1',n:'통합 테스트',             t:'t',area:'PMO',  s:23, e:25, st:'todo'},
+  {id:'1.5.2',n:'성능 테스트',             t:'t',area:'인프라',s:24, e:25, st:'todo'},
+  {id:'1.5.3',n:'보안 취약점 점검',         t:'t',area:'사이버',s:24, e:25, st:'todo'},
+  {id:'1.5.4',n:'사용자 인수 테스트 (UAT)',t:'t',area:'PMO',  s:25, e:26, st:'todo'},
+  {id:'1.5.5',n:'데이터 마이그레이션 시험이관',t:'t',area:'이지원',s:25,e:26,st:'todo'},
+  {id:'M4',   n:'구현단계 감리 (3단계)',   t:'m',area:'PMO',  s:26, e:26, st:'todo'},
+  // ─ P6 완료 ─────────────────────────────────────────────
+  {id:'P6',   n:'안정화 및 완료',          t:'p',area:'PMO',  s:27, e:28, st:'todo'},
+  {id:'1.6.1',n:'운영 환경 최종 구성',     t:'t',area:'인프라',s:27, e:27, st:'todo'},
+  {id:'1.6.2',n:'데이터 본이관',           t:'t',area:'이지원',s:27, e:27, st:'todo'},
+  {id:'M5',   n:'시스템 오픈 (Go-Live)',   t:'m',area:'PMO',  s:27, e:27, st:'todo'},
+  {id:'1.6.3',n:'사용자 교육',             t:'t',area:'PMO',  s:27, e:28, st:'todo'},
+  {id:'1.6.4',n:'운영 매뉴얼 작성',         t:'t',area:'PMO',  s:27, e:28, st:'todo'},
+  {id:'1.6.5',n:'안정화 운영 지원',         t:'t',area:'PMO',  s:27, e:28, st:'todo'},
+  {id:'1.6.6',n:'최종 산출물 정리',         t:'t',area:'PMO',  s:28, e:28, st:'todo'},
+  {id:'M6',   n:'완료보고',                 t:'m',area:'PMO',  s:28, e:28, st:'todo'},
 ];
 
-// Staffing
-const STAFF = [
-  {role:'PM',area:'PMO',m:[0.5,1,1,1,1,1,0.5]},
-  {role:'PMO 지원',area:'PMO',m:[0.5,1,1,1,1,1,0.5]},
-  {role:'UI/UX 디자이너',area:'UI·UX',m:[0,1,1,1,1,0.5,0]},
-  {role:'이지원 개발 (선임)',area:'이지원·사이버',m:[0.5,1,1,1,1,1,0.5]},
-  {role:'이지원 개발 (주임)',area:'이지원·사이버',m:[0,1,1,1,1,1,0.5]},
-  {role:'사이버보안 전문가',area:'이지원·사이버',m:[0.5,1,1,1,1,0.5,0]},
-  {role:'콜센터 개발자',area:'콜센터',m:[0,0.5,1,1,1,1,0.5]},
-  {role:'공통인프라 엔지니어',area:'공통인프라',m:[0.5,1,1,1,0.5,0.5,0.5]},
-];
+// ── 상태 관리 ────────────────────────────────────────────────
+const pOpen={};
+D.filter(r=>r.t==='p').forEach(r=>pOpen[r.id]=true);
+let flt='all';
 
-// ══════════════════════════════════════════════════════════
-// STATE
-// ══════════════════════════════════════════════════════════
-const tStatus = {};
-const pOpen = {};
-let curFilter = 'all';
-const reqDone = {};
-
-PHASES.forEach(ph => {
-  pOpen[ph.id] = true;
-  ph.tasks.forEach(t => { tStatus[t.id] = t.status; });
-});
-REQS.forEach(r => { reqDone[r.id] = false; });
-
-// ══════════════════════════════════════════════════════════
-// TABS
-// ══════════════════════════════════════════════════════════
-function showTab(id, btn) {
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('tab-'+id).classList.add('active');
-  btn.classList.add('active');
+// ── 통계 ─────────────────────────────────────────────────────
+function stats(){
+  const ts=D.filter(r=>r.t==='t');
+  const tot=ts.length, dn=ts.filter(x=>x.st==='done').length,
+        dg=ts.filter(x=>x.st==='doing').length, td=ts.filter(x=>x.st==='todo'||x.st==='review').length;
+  const p=tot?Math.round(dn/tot*100):0;
+  document.getElementById('s-total').textContent=tot;
+  document.getElementById('s-done').textContent=dn;
+  document.getElementById('s-doing').textContent=dg;
+  document.getElementById('s-todo').textContent=td;
+  document.getElementById('pfill').style.width=p+'%';
+  document.getElementById('ppct').textContent=p+'%';
+  document.getElementById('h-done').textContent=dn+' 완료';
+  document.getElementById('h-pct').textContent=p+'%';
 }
 
-// ══════════════════════════════════════════════════════════
-// WBS RENDER
-// ══════════════════════════════════════════════════════════
-const SL = {done:'완료',doing:'진행중',review:'검토중',todo:'대기'};
-const AREA_COLOR = {'이지원':'area-이지원','사이버':'area-사이버','콜센터':'area-콜센터','인프라':'area-인프라','PMO':'area-PMO'};
+// ── 간트 렌더 ────────────────────────────────────────────────
+function render(){
+  const tbl=document.getElementById('gtbl');
+  tbl.innerHTML='';
 
-function cycleStatus(id) {
-  const ord = ['todo','doing','review','done'];
-  tStatus[id] = ord[(ord.indexOf(tStatus[id])+1) % ord.length];
-  renderWBS();
-}
+  // HEAD
+  const thead=tbl.createTHead();
+  // 행1: 고정열 + 월 헤더
+  const hr1=thead.insertRow();
+  hr1.innerHTML=`<th class="th-id" rowspan="2">ID</th><th class="th-name" rowspan="2">작업명 / Task Name</th>`;
+  MONTHS.forEach(m=>{
+    const c=m.e-m.s+1;
+    const th=document.createElement('th');
+    th.className='th-month'; th.colSpan=c;
+    th.textContent='2026년 '+m.n;
+    hr1.appendChild(th);
+  });
+  // 행2: 주차 헤더
+  const hr2=thead.insertRow();
+  for(let w=1;w<=TW;w++){
+    const th=document.createElement('th');
+    th.className='th-w'+(w===TODAY_W?' th-w-now':'');
+    th.textContent='W'+w;
+    hr2.appendChild(th);
+  }
 
-function togglePhase(id) { pOpen[id] = !pOpen[id]; renderWBS(); }
-function expandAll()  { PHASES.forEach(p => pOpen[p.id]=true);  renderWBS(); }
-function collapseAll(){ PHASES.forEach(p => pOpen[p.id]=false); renderWBS(); }
-function setFilter(f) {
-  curFilter = f;
-  ['all','todo','doing','review','done'].forEach(x => document.getElementById('f-'+x)?.classList.toggle('on', x===f));
-  renderWBS();
-}
+  // BODY
+  const tbody=tbl.createTBody();
+  let curP=null;
 
-function calcStats() {
-  let total=0, done=0, doing=0;
-  PHASES.forEach(ph => ph.tasks.forEach(t => {
-    if (t.milestone) return;
-    total++; const s=tStatus[t.id];
-    if(s==='done') done++;
-    if(s==='doing') doing++;
-  }));
-  return {total,done,doing};
-}
+  D.forEach(row=>{
+    if(row.t==='p') curP=row.id;
+    // 필터: 태스크만 적용, 마일스톤/Phase는 항상 표시
+    if(flt!=='all' && row.t==='t' && row.st!==flt) return;
+    const isChild=(row.t==='t'||row.t==='m');
+    const hide=isChild && curP && !pOpen[curP];
 
-function checkIcon(s) {
-  if(s==='done') return '<svg viewBox="0 0 12 12" fill="none"><polyline points="1.5,6 4.5,9 10.5,3" stroke="#4ade80" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  if(s==='doing') return '<svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="2.5" fill="#38bdf8"/></svg>';
-  if(s==='review') return '<svg viewBox="0 0 12 12" fill="none"><line x1="6" y1="2" x2="6" y2="7" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/><circle cx="6" cy="9.5" r="1" fill="#fbbf24"/></svg>';
-  return '';
-}
+    const tr=tbody.insertRow();
+    tr.className='r-'+{p:'phase',t:'task',m:'milestone'}[row.t]+(hide?' hidden':'');
+    if(isChild) tr.dataset.ph=curP;
 
-function renderWBS() {
-  const {total,done,doing} = calcStats();
-  const pct = total ? Math.round(done/total*100) : 0;
-  document.getElementById('prog-txt').textContent = pct+'%';
-  document.getElementById('prog-fill').style.width = pct+'%';
-  document.getElementById('s-total').textContent = total;
-  document.getElementById('s-done').textContent = done;
-  document.getElementById('s-doing').textContent = doing;
-
-  let html = '';
-  PHASES.forEach(ph => {
-    const filtered = ph.tasks.filter(t => curFilter==='all' || tStatus[t.id]===curFilter || t.milestone);
-    if (!filtered.length && curFilter!=='all') return;
-
-    const nonMs = ph.tasks.filter(t=>!t.milestone);
-    const phDone = nonMs.filter(t=>tStatus[t.id]==='done').length;
-    const phPct = nonMs.length ? Math.round(phDone/nonMs.length*100) : 0;
-    const open = pOpen[ph.id];
-
-    html += `<div class="phase-block">
-      <div class="phase-hdr" onclick="togglePhase('${ph.id}')">
-        <span class="chevron ${open?'open':''}">▶</span>
-        <span class="phase-id" style="background:${ph.phColor};color:${ph.color}">${ph.id}</span>
-        <span class="phase-name" style="color:${ph.color}">${ph.name}</span>
-        <span style="font-size:.65rem;color:#475569">${ph.weeks}</span>
-        <div class="phase-stat">
-          <span>${phDone}/${nonMs.length}</span>
-          <div class="mbar"><div class="mfill" style="width:${phPct}%;background:${ph.color}"></div></div>
-        </div>
-      </div>`;
-
-    if (open) {
-      html += `<div class="task-rows">`;
-      filtered.forEach(t => {
-        const s = tStatus[t.id];
-        const isMile = !!t.milestone;
-        const ac = AREA_COLOR[t.area] || 'area-PMO';
-        const reqStr = t.reqs && t.reqs.length ? t.reqs.slice(0,3).join(' ') + (t.reqs.length>3?'…':'') : '';
-        const subsHtml = t.subs ? t.subs.map(sb =>
-          `<div class="sub"><div class="sdot ${s==='done'?'done':s==='doing'?'doing':''}"></div><span>${sb}</span></div>`
-        ).join('') : '';
-
-        html += `<div class="tr${isMile?' milestone-row':''}">
-          <div class="chk ${s}" onclick="cycleStatus('${t.id}')" title="상태 변경">${checkIcon(s)}</div>
-          <div class="tbody">
-            <div class="trow1">
-              <span class="tid">${t.id}</span>
-              <span class="tname${s==='done'?' done':''}">${isMile?'<span class="milestone-mark">◆ </span>':''}${isMile?t.name.replace('◆ ',''):t.name}</span>
-              <span class="area-tag ${ac}">${t.area}</span>
-              ${!isMile?`<span class="stag ${s}">${SL[s]}</span>`:''}
-              ${reqStr?`<span class="req-ids">${reqStr}</span>`:''}
-              <span class="tdate">${t.weeks||''}</span>
-            </div>
-            ${t.desc?`<div class="tdesc">${t.desc}</div>`:''}
-            ${subsHtml?`<div class="subs">${subsHtml}</div>`:''}
-          </div>
-        </div>`;
-      });
-      html += `</div>`;
+    // ─ ID cell ─
+    const tdId=tr.insertCell(); tdId.className='td-id';
+    if(row.t==='p'){
+      const chv=document.createElement('span');
+      chv.className='chv'+(pOpen[row.id]?' o':'');
+      chv.textContent='▶';
+      chv.onclick=()=>togP(row.id);
+      tdId.appendChild(chv);
+      tdId.appendChild(document.createTextNode(' '+row.id));
+      tdId.style.color='#475569'; tdId.style.fontWeight='700';
+    } else {
+      tdId.innerHTML=`<span style="color:#e2e8f0">└</span> ${row.id}`;
     }
-    html += `</div>`;
-  });
-  document.getElementById('wbs-root').innerHTML = html;
-}
 
-// ══════════════════════════════════════════════════════════
-// REQUIREMENTS
-// ══════════════════════════════════════════════════════════
-let curCat = 'ALL';
-function filterReq(cat, btn) {
-  curCat = cat;
-  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('on'));
-  btn.classList.add('on');
-  renderReqs();
-}
+    // ─ Name cell ─
+    const tdN=tr.insertCell(); tdN.className='td-name';
+    const c=AC[row.area]||'#94a3b8';
+    const wrap=document.createElement('div'); wrap.className='row-label';
+    const pip=document.createElement('div'); pip.className='area-pip';
 
-function toggleReqDone(id) {
-  reqDone[id] = !reqDone[id];
-  renderReqs();
-}
-
-function renderReqs() {
-  const list = curCat==='ALL' ? REQS : REQS.filter(r=>r.cat===curCat);
-  const tbody = document.getElementById('req-tbody');
-  tbody.innerHTML = list.map(r => `
-    <tr>
-      <td class="req-id">${r.id}</td>
-      <td><span class="req-cat cat-${r.cat}">${r.cat}</span></td>
-      <td style="color:#cbd5e1">${r.name}</td>
-      <td><span class="area-tag ${AREA_COLOR[r.area]||'area-PMO'}">${r.area}</span></td>
-      <td class="req-wbs">${r.wbs}</td>
-      <td style="text-align:center"><div class="done-chk ${reqDone[r.id]?'on':''}" onclick="toggleReqDone('${r.id}')">${reqDone[r.id]?'<svg width="9" height="9" viewBox="0 0 12 12" fill="none"><polyline points="1.5,6 4.5,9 10.5,3" stroke="#4ade80" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>':''}</div></td>
-    </tr>`).join('');
-}
-
-// ══════════════════════════════════════════════════════════
-// STAFFING
-// ══════════════════════════════════════════════════════════
-function renderStaff() {
-  const months = ['M1\n(3월)','M2\n(4월)','M3\n(5월)','M4\n(6월)','M5\n(7월)','M6\n(8월)','M7\n(9월)'];
-  const areas = ['PMO','UI·UX','이지원·사이버','콜센터','공통인프라'];
-  const areaColor = {'PMO':'#94a3b8','UI·UX':'#c084fc','이지원·사이버':'#60a5fa','콜센터':'#34d399','공통인프라':'#fbbf24'};
-
-  let html = `<thead><tr>
-    <th class="left" style="width:160px">역할</th>
-    <th class="left" style="width:90px">영역</th>`;
-  months.forEach(m => { html += `<th style="white-space:pre-line;font-size:.65rem">${m}</th>`; });
-  html += `<th>합계</th></tr></thead><tbody>`;
-
-  // Group by area
-  areas.forEach(area => {
-    const members = STAFF.filter(s => s.area===area);
-    members.forEach((s,idx) => {
-      const rowTotal = s.m.reduce((a,b)=>a+b,0).toFixed(1);
-      html += `<tr>
-        <td class="left"><div class="role-label"><span class="role-name">${s.role}</span></div></td>
-        <td class="left"><span style="font-size:.65rem;color:${areaColor[area]||'#94a3b8'}">${area}</span></td>`;
-      s.m.forEach(v => {
-        html += `<td class="${v>0?'mm-val':'mm-zero'}">${v>0?v:'-'}</td>`;
+    if(row.t==='m'){
+      pip.style.background='#fbbf24'; pip.style.borderRadius='2px';
+      wrap.appendChild(pip);
+      const sp=document.createElement('span');
+      sp.style.cssText='color:#b45309;font-weight:700;font-size:.78rem';
+      sp.textContent='◆ '+row.n.replace('◆ ','');
+      wrap.appendChild(sp);
+    } else if(row.t==='p'){
+      pip.style.background=c;
+      wrap.appendChild(pip);
+      const sp=document.createElement('span');
+      sp.className='row-text'; sp.style.cssText='font-weight:700;font-size:.8rem;color:#1e293b';
+      sp.textContent=row.n;
+      wrap.appendChild(sp);
+      // task count
+      const kids=D.filter(r=>{
+        let cp=null;
+        for(const x of D){if(x.t==='p')cp=x.id;if(x===r)break;}
+        return r.t==='t'&&cp===row.id;
       });
-      html += `<td class="total">${rowTotal}</td></tr>`;
-    });
+    } else {
+      pip.style.background=c;
+      wrap.appendChild(pip);
+      const sp=document.createElement('span');
+      sp.className='row-text'; sp.style.color=c; sp.textContent=row.n;
+      wrap.appendChild(sp);
+      if(row.st){
+        const bd=document.createElement('span');
+        bd.className='sbadge '+SC[row.st];
+        bd.textContent=SL[row.st];
+        wrap.appendChild(bd);
+      }
+    }
+    tdN.appendChild(wrap);
 
-    // Area subtotal
-    const subTotals = [0,1,2,3,4,5,6].map(i => members.reduce((sum,s)=>sum+(s.m[i]||0),0));
-    const areaTotal = subTotals.reduce((a,b)=>a+b,0).toFixed(1);
-    html += `<tr>
-      <td colspan="2" class="sub" style="text-align:right;font-size:.68rem">${area} 소계</td>`;
-    subTotals.forEach(v => { html += `<td class="sub" style="color:#64748b">${v>0?v.toFixed(1):'-'}</td>`; });
-    html += `<td class="sub" style="color:#fbbf24">${areaTotal}</td></tr>`;
+    // ─ Week cells ─
+    for(let w=1;w<=TW;w++){
+      const td=tr.insertCell();
+      td.className='td-week'+(w===TODAY_W?' w-now':'');
+
+      if(row.t==='m'){
+        // 마일스톤
+        if(w===row.s){
+          td.className+=' ms';
+          td.textContent='◆';
+          td.title=row.n+' (W'+row.s+')';
+        }
+      } else if(w>=row.s && w<=row.e){
+        const isS=(w===row.s), isE=(w===row.e), isSE=(row.s===row.e);
+        const isPhase=(row.t==='p');
+        const div=document.createElement('div');
+        let cls=isPhase?'bar bar-phase':'bar';
+        if(isSE) cls+=' bar-se';
+        else if(isS) cls+=' bar-s';
+        else if(isE) cls+=' bar-e';
+        div.className=cls;
+        div.style.background=c;
+        if(!isPhase && row.st==='done') div.classList.add('bar-done');
+        td.appendChild(div);
+        if(isS){
+          td.title=`${row.id}: ${row.n}\nW${row.s}~W${row.e} (${row.e-row.s+1}주) | ${row.area} | ${SL[row.st]||''}`;
+          td.style.cursor='help';
+        }
+      }
+    }
   });
-
-  // Grand total
-  const grand = [0,1,2,3,4,5,6].map(i => STAFF.reduce((sum,s)=>sum+(s.m[i]||0),0));
-  const grandTotal = grand.reduce((a,b)=>a+b,0).toFixed(1);
-  html += `<tr>
-    <td colspan="2" class="total" style="text-align:right">전체 합계</td>`;
-  grand.forEach(v => { html += `<td class="total">${v.toFixed(1)}</td>`; });
-  html += `<td class="total">${grandTotal} MM</td></tr>`;
-
-  html += '</tbody>';
-  document.getElementById('staff-table').innerHTML = html;
 }
 
-// INIT
-renderWBS();
-renderReqs();
-renderStaff();
+// ── 컨트롤 ──────────────────────────────────────────────────
+function togP(pid){
+  pOpen[pid]=!pOpen[pid];
+  document.querySelectorAll(`[data-ph="${pid}"]`).forEach(tr=>tr.classList.toggle('hidden',!pOpen[pid]));
+  const chv=document.querySelector(`.r-phase .chv[onclick*="${pid}"]`);
+  // re-query by iterating
+  document.querySelectorAll('.r-phase .chv').forEach(el=>{
+    if(el.onclick && el.onclick.toString().includes(pid)) el.classList.toggle('o',pOpen[pid]);
+  });
+  render(); // simpler to re-render
+}
+function setF(f,btn){
+  flt=f;
+  ['all','todo','doing','review','done'].forEach(x=>document.getElementById('f-'+x)?.classList.toggle('on',x===f));
+  render();
+}
+function expAll(){D.filter(r=>r.t==='p').forEach(r=>pOpen[r.id]=true);render()}
+function colAll(){D.filter(r=>r.t==='p').forEach(r=>pOpen[r.id]=false);render()}
+
+function init(){stats();render()}
 </script>
 </body>
 </html>
