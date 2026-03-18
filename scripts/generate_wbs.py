@@ -16,12 +16,33 @@ JIRA Cloud → WBS Gantt HTML Generator  (v3)
 선택 환경변수:
   WBS_OUTPUT           출력 경로   (기본: docs/index.html)
   WBS_TITLE            페이지 제목 (기본: 프로젝트 WBS)
+  WBS_PROJECT_NAME     로그인 화면·헤더 제목 (기본: 경기신용보증재단 디지털고도화)
+  WBS_GATE_SUB         로그인 화면 부가 문구 (기본: 이 페이지는 디지털고도화 프로젝트 팀원 전용입니다)
   PROJECT_START_DATE   프로젝트 시작일 YYYY-MM-DD (기본: 2026-03-23)
   TOTAL_WEEKS          총 주차 수  (기본: 32)
 """
 
 import os, sys, json, hashlib, re
 from datetime import datetime, timedelta
+
+# 프로젝트 루트에서 .env 로드 (.env 값이 우선)
+def _load_dotenv():
+    for d in [os.path.dirname(os.path.dirname(os.path.abspath(__file__))), os.getcwd()]:
+        env_path = os.path.join(d, ".env")
+        if os.path.isfile(env_path):
+            with open(env_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, _, v = line.partition("=")
+                        k = k.strip()
+                        v = v.strip().strip('"').strip("'")
+                        if "#" in v:
+                            v = v.split("#")[0].strip()
+                        if k:
+                            os.environ[k] = v
+            break
+_load_dotenv()
 
 try:
     import requests
@@ -35,9 +56,11 @@ JIRA_URL        = os.environ.get("JIRA_URL", "").rstrip("/")
 JIRA_EMAIL      = os.environ.get("JIRA_EMAIL", "")
 JIRA_TOKEN      = os.environ.get("JIRA_API_TOKEN", "")
 PROJECT_KEY     = os.environ.get("JIRA_PROJECT_KEY", "")
-WBS_PASSWORD    = os.environ.get("WBS_PASSWORD", "")
-OUTPUT_PATH     = os.environ.get("WBS_OUTPUT", "docs/index.html")
-WBS_TITLE       = os.environ.get("WBS_TITLE", "프로젝트 WBS")
+WBS_PASSWORD       = os.environ.get("WBS_PASSWORD", "")
+OUTPUT_PATH        = os.environ.get("WBS_OUTPUT", "docs/index.html")
+WBS_TITLE          = os.environ.get("WBS_TITLE", "프로젝트 WBS")
+WBS_PROJECT_NAME   = os.environ.get("WBS_PROJECT_NAME", "경기신용보증재단 디지털고도화")
+WBS_GATE_SUB       = os.environ.get("WBS_GATE_SUB", "이 페이지는 디지털고도화 프로젝트 팀원 전용입니다")
 PROJECT_START_S = os.environ.get("PROJECT_START_DATE", "2026-03-23")
 TOTAL_WEEKS     = int(os.environ.get("TOTAL_WEEKS", "32"))
 SNAPSHOT_DIR    = os.environ.get("SNAPSHOT_DIR",    "docs/data/snapshots")
@@ -56,9 +79,9 @@ AREA_KEYWORDS = {
         "마이다스", "midas", "법인", "공동대표", "ocr", "챗봇", "chatbot",
         "팩토리", "상품", "app고도화", "앱", "ai", "고도화",
     ],
-    "사이버": [
+    "인터넷웹": [
         "사이버", "cyber", "security", "보안", "인증", "취약점", "iam", "방화벽",
-        "사이버보증", "보증",
+        "사이버보증", "보증", "인터넷", "웹", "internet", "web",
     ],
     "콜센터": [
         "콜센터", "callcenter", "call", "cti", "ivr", "상담", "녹취",
@@ -162,18 +185,22 @@ class JiraClient:
         r.raise_for_status()
         return r.json()
 
-    def search(self, jql: str, max_results: int = 1000) -> list:
-        issues, start = [], 0
+    def search(self, jql: str, max_results: int = 10000) -> list:
+        """Jira Cloud REST v3: /rest/api/3/search/jql (기존 /search는 410 제거됨)."""
+        issues = []
+        next_page_token = None
+        fields_param = ",".join(JIRA_FIELDS)
         while True:
             batch = min(100, max_results - len(issues))
-            data  = self._get("search", {
-                "jql": jql, "startAt": start, "maxResults": batch,
-                "fields": ",".join(JIRA_FIELDS),
-            })
-            issues.extend(data.get("issues", []))
-            if not data.get("issues") or len(issues) >= data.get("total", 0) or len(issues) >= max_results:
+            params = {"jql": jql, "maxResults": batch, "fields": fields_param}
+            if next_page_token:
+                params["nextPageToken"] = next_page_token
+            data = self._get("search/jql", params)
+            batch_issues = data.get("issues", [])
+            issues.extend(batch_issues)
+            next_page_token = data.get("nextPageToken")
+            if not batch_issues or len(issues) >= max_results or not next_page_token:
                 break
-            start += len(data["issues"])
         return issues
 
     def project_type(self) -> str:
@@ -361,6 +388,8 @@ def _update_snapshot_index(date: str, count: int):
     else:
         idx["snapshots"].append(entry)
     idx["snapshots"].sort(key=lambda x: x["date"], reverse=True)
+    idx["project_key"] = PROJECT_KEY
+    idx["jira_url"] = JIRA_URL
     with open(idx_path, "w", encoding="utf-8") as f:
         json.dump(idx, f, ensure_ascii=False, indent=2)
 
@@ -453,10 +482,11 @@ def build_d_array(all_issues: list, ptype: str) -> list:
 
 
 # ── HTML 생성 ──────────────────────────────────────────────────────────────────
-def build_html(D: list) -> str:
+def build_html(D: list, snapshot_date: str = None) -> str:
     pw_hash     = sha256_hex(WBS_PASSWORD)
     last_update = datetime.now().strftime("%Y-%m-%d %H:%M")
     td_str      = today_str()
+    snapshot_date = snapshot_date or td_str  # index.html은 이 날짜 스냅샷 기준으로 구성
     tw          = today_week()
     ps_str      = PROJECT_START.strftime("%Y-%m-%d")
     d_json      = json.dumps(D, ensure_ascii=False)
@@ -487,7 +517,11 @@ def build_html(D: list) -> str:
         .replace("%%TOTAL_WEEKS%%",   str(TOTAL_WEEKS))
         .replace("%%MONTHS_JSON%%",   months_json)
         .replace("%%D_JSON%%",        d_json)
-        .replace("%%JIRA_URL%%",      JIRA_URL)
+        .replace("%%SNAPSHOT_DATE%%",   snapshot_date)
+        .replace("%%WBS_PROJECT_NAME%%", WBS_PROJECT_NAME)
+        .replace("%%WBS_GATE_SUB%%",     WBS_GATE_SUB)
+        .replace("%%WBS_EXCEL_NAME%%",    re.sub(r'[^\w\u3131-\u318e\uac00-\ud7a3\-]', '_', WBS_PROJECT_NAME))
+        .replace("%%JIRA_URL%%",         JIRA_URL)
         .replace("%%BOARD_URL%%",     board_url)
         .replace("%%TOTAL%%",         str(total))
         .replace("%%DONE%%",          str(done))
@@ -620,8 +654,8 @@ const PROJECT_KEY="{proj_key}";
 const PROJECT_START=new Date("{ps_str}");
 const TOTAL_WEEKS={TOTAL_WEEKS};
 const MONTHS={months_json};
-const AC={{'이지원':'#3b82f6','사이버':'#8b5cf6','콜센터':'#10b981','인프라':'#f59e0b','PMO':'#94a3b8'}};
-const BC={{'이지원':'#2563eb','사이버':'#7c3aed','콜센터':'#059669','인프라':'#d97706','PMO':'#64748b'}};
+const AC={{'이지원':'#3b82f6','인터넷웹':'#8b5cf6','콜센터':'#10b981','인프라':'#f59e0b','PMO':'#94a3b8'}};
+const BC={{'이지원':'#2563eb','인터넷웹':'#7c3aed','콜센터':'#059669','인프라':'#d97706','PMO':'#64748b'}};
 
 // ── 인증 ──
 async function sha256(msg){{
@@ -647,7 +681,7 @@ function fmtDate(d){{return(d.getMonth()+1)+'/'+(d.getDate());}}
 function detectArea(summary,labels,components){{
   const txt=[summary,...(labels||[]),...(components||[])].join(' ').toLowerCase();
   if(['이지원','마이다스','법인','공동대표','ocr','챗봇','팩토리','상품','app','고도화'].some(k=>txt.includes(k)))return '이지원';
-  if(['사이버','보안','사이버보증'].some(k=>txt.includes(k)))return '사이버';
+  if(['사이버','보안','사이버보증','인터넷','웹'].some(k=>txt.includes(k)))return '인터넷웹';
   if(['콜센터','상담','ars','보이는ars'].some(k=>txt.includes(k)))return '콜센터';
   if(['인프라','서버','소스코드','응답시간','성능','형상'].some(k=>txt.includes(k)))return '인프라';
   return 'PMO';
@@ -679,7 +713,7 @@ async function init(){{
         o.value=s.date;o.textContent=s.date+' ('+s.count+'건)';sel.appendChild(o);
       }});
     }});
-    document.getElementById('snap-info').textContent='스냅샷 '+idx.snapshots.length+'개 | 프로젝트: '+PROJECT_KEY;
+    document.getElementById('snap-info').textContent='스냅샷 '+idx.snapshots.length+'개 | 프로젝트: '+(idx.project_key||PROJECT_KEY);
     if(idx.snapshots.length>0){{s1.value=idx.snapshots[0].date;loadSnapshot(idx.snapshots[0].date);}}
   }}catch(e){{document.getElementById('snap-info').textContent='스냅샷 없음 (Actions 실행 후 생성됩니다)';}}
 }}
@@ -928,7 +962,7 @@ def _html_template() -> str:
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>%%WBS_TITLE%%</title>
+<title>📋 %%WBS_PROJECT_NAME%%</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -952,13 +986,16 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f4f8;color:#1e293
 
 /* ── 메인 레이아웃 ── */
 #main{display:none}
-.app-hdr{background:linear-gradient(135deg,#1e293b,#1e3a5f);color:#fff;padding:.75rem 1.4rem;display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;position:sticky;top:0;z-index:200;box-shadow:0 4px 16px rgba(0,0,0,.35)}
-.app-hdr h1{font-size:1rem;font-weight:800;flex:1;min-width:0}
-.hbadge{font-size:.62rem;padding:.18rem .55rem;border-radius:99px;font-weight:700;white-space:nowrap}
-.hb-b{background:rgba(37,99,235,.35);color:#93c5fd;border:1px solid rgba(37,99,235,.4)}
-.hb-g{background:rgba(22,163,74,.3);color:#86efac;border:1px solid rgba(22,163,74,.4)}
-.hb-a{background:rgba(245,158,11,.25);color:#fde68a;border:1px solid rgba(245,158,11,.4)}
-.sync{font-size:.66rem;color:#94a3b8;display:flex;align-items:center;gap:.28rem;margin-left:auto;white-space:nowrap}
+.app-hdr{background:linear-gradient(135deg,#1e293b,#1e3a5f);color:#fff;padding:.9rem 1.6rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;position:sticky;top:0;z-index:200;box-shadow:0 4px 20px rgba(0,0,0,.4)}
+.app-hdr h1{font-size:1.15rem;font-weight:800;flex:1;min-width:0;letter-spacing:-.02em}
+.hbadge{font-size:.7rem;padding:.28rem .65rem;border-radius:99px;font-weight:700;white-space:nowrap}
+.hb-b{background:rgba(37,99,235,.45);color:#bfdbfe;border:1px solid rgba(96,165,250,.5)}
+.hb-g{background:rgba(22,163,74,.4);color:#bbf7d0;border:1px solid rgba(34,197,94,.5)}
+.hb-a{background:rgba(245,158,11,.35);color:#fef08a;border:1px solid rgba(251,191,36,.5)}
+.sync{font-size:.72rem;color:#cbd5e1;display:flex;align-items:center;gap:.4rem;margin-left:auto;white-space:nowrap}
+.sync select{background:rgba(255,255,255,.15);color:#f1f5f9;border:1px solid rgba(255,255,255,.25);border-radius:.35rem;padding:.3rem .55rem;font-size:.75rem;cursor:pointer;min-width:128px;font-weight:500}
+.sync select:hover{background:rgba(255,255,255,.22)}
+.sync select option{background:#1e293b;color:#e2e8f0}
 .sdot{width:7px;height:7px;border-radius:50%;background:#4ade80;animation:blink 2s infinite;flex-shrink:0}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
 .jira-btn{display:inline-flex;align-items:center;gap:.28rem;color:#94a3b8;font-size:.66rem;text-decoration:none;border:1px solid #334155;padding:.22rem .5rem;border-radius:.3rem;transition:all .15s;white-space:nowrap;background:rgba(255,255,255,.05)}
@@ -1022,8 +1059,12 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f4f8;color:#1e293
 .gtbl{border-collapse:collapse;table-layout:fixed;white-space:nowrap}
 .gtbl thead th{border:1px solid #e2e8f0;font-weight:600;user-select:none}
 .th-id{position:sticky;left:0;top:0;z-index:25;background:#1e293b;color:#94a3b8;font-size:.59rem;padding:.4rem .4rem;width:62px;min-width:62px;border-color:#334155!important;text-align:left}
-.th-nm{position:sticky;left:62px;top:0;z-index:25;background:#1e293b;color:#94a3b8;font-size:.59rem;padding:.4rem .65rem;width:230px;min-width:230px;border-color:#334155!important;text-align:left}
-.th-ow{position:sticky;left:292px;top:0;z-index:25;background:#1e293b;color:#94a3b8;font-size:.59rem;padding:.4rem .4rem;width:82px;min-width:82px;border-color:#334155!important;text-align:center}
+.th-nm{position:sticky;left:62px;top:0;z-index:25;background:#1e293b;color:#94a3b8;font-size:.59rem;padding:.4rem .65rem;width:var(--col-nm-w,320px);min-width:260px;max-width:600px;border-color:#334155!important;text-align:left}
+.th-nm .col-resize{position:absolute;right:0;top:0;bottom:0;width:6px;cursor:col-resize;background:transparent}
+.th-nm .col-resize:hover{background:rgba(56,189,248,.3)}
+.th-ow{position:sticky;left:calc(62px + var(--col-nm-w,320px));top:0;z-index:25;background:#1e293b;color:#94a3b8;font-size:.59rem;padding:.4rem .4rem;width:72px;min-width:72px;border-color:#334155!important;text-align:center}
+.th-sd{position:sticky;left:calc(134px + var(--col-nm-w,320px));top:0;z-index:25;background:#1e293b;color:#94a3b8;font-size:.59rem;padding:.4rem .35rem;width:92px;min-width:92px;border-color:#334155!important;text-align:center}
+.th-ed{position:sticky;left:calc(226px + var(--col-nm-w,320px));top:0;z-index:25;background:#1e293b;color:#94a3b8;font-size:.59rem;padding:.4rem .35rem;width:92px;min-width:92px;border-color:#334155!important;text-align:center}
 .th-mo{background:#334155;color:#e2e8f0;font-size:.7rem;padding:.36rem .35rem;text-align:center;border-color:#475569!important;position:sticky;top:0;z-index:6}
 .th-w{background:#f8fafc;text-align:center;width:52px;min-width:52px;max-width:52px;border-color:#e2e8f0!important;cursor:default;padding:.14rem .1rem;vertical-align:top;line-height:1;position:sticky;z-index:5}
 .th-w-num{font-size:.63rem;font-weight:700;color:#475569;line-height:1.25}
@@ -1037,16 +1078,18 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f4f8;color:#1e293
 .task-dts{font-size:.5rem;color:#94a3b8;margin-left:auto;padding-left:.3rem;flex-shrink:0;white-space:nowrap;letter-spacing:.01em}
 
 .td-id{position:sticky;left:0;z-index:10;background:#fff;border:1px solid #f1f5f9;border-right:1px solid #e2e8f0;padding:.2rem .4rem;font-size:.6rem;font-family:Consolas,monospace;color:#94a3b8;width:62px;min-width:62px;vertical-align:middle}
-.td-nm{position:sticky;left:62px;z-index:10;background:#fff;border:1px solid #f1f5f9;border-right:1px solid #e2e8f0;padding:.18rem .55rem;width:230px;min-width:230px;max-width:230px;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
-.td-ow{position:sticky;left:292px;z-index:10;background:#fff;border:1px solid #f1f5f9;border-right:2px solid #d1d5db;padding:.15rem .35rem;width:82px;min-width:82px;max-width:82px;vertical-align:middle;text-align:center}
+.td-nm{position:sticky;left:62px;z-index:10;background:#fff;border:1px solid #f1f5f9;border-right:1px solid #e2e8f0;padding:.35rem .55rem;width:var(--col-nm-w,320px);min-width:260px;max-width:600px;word-break:keep-all;overflow:hidden;text-overflow:ellipsis;vertical-align:middle;line-height:1.35}
+.td-ow{position:sticky;left:calc(62px + var(--col-nm-w,320px));z-index:10;background:#fff;border:1px solid #f1f5f9;border-right:1px solid #e2e8f0;padding:.15rem .35rem;width:72px;min-width:72px;vertical-align:middle;text-align:center}
+.td-sd{position:sticky;left:calc(134px + var(--col-nm-w,320px));z-index:10;background:#fff;border:1px solid #f1f5f9;border-right:1px solid #e2e8f0;padding:.2rem .35rem;width:92px;min-width:92px;font-size:.65rem;font-family:Consolas,monospace;color:#475569;vertical-align:middle;text-align:center}
+.td-ed{position:sticky;left:calc(226px + var(--col-nm-w,320px));z-index:10;background:#fff;border:1px solid #f1f5f9;border-right:2px solid #d1d5db;padding:.2rem .35rem;width:92px;min-width:92px;font-size:.65rem;font-family:Consolas,monospace;color:#475569;vertical-align:middle;text-align:center}
 .td-w{border:1px solid #f1f5f9;width:52px;min-width:52px;max-width:52px;padding:0;vertical-align:middle;height:34px}
 .td-w.col-now{background:#fefce8}
 .td-w.col-past{background:#fafafa}
 
-tr.r-phase .td-id,.tr.r-phase .td-nm,.tr.r-phase .td-ow{background:#f1f5f9}
+tr.r-phase .td-id,.tr.r-phase .td-nm,.tr.r-phase .td-ow,.tr.r-phase .td-sd,.tr.r-phase .td-ed{background:#f1f5f9}
 tr.r-phase .td-w{background:#f5f5f5}
-tr.r-ms .td-id,tr.r-ms .td-nm,tr.r-ms .td-ow{background:#fffbeb}
-.gtbl tbody tr:hover .td-id,.gtbl tbody tr:hover .td-nm,.gtbl tbody tr:hover .td-ow{background:#eff6ff!important}
+tr.r-ms .td-id,tr.r-ms .td-nm,tr.r-ms .td-ow,tr.r-ms .td-sd,tr.r-ms .td-ed{background:#fffbeb}
+.gtbl tbody tr:hover .td-id,.gtbl tbody tr:hover .td-nm,.gtbl tbody tr:hover .td-ow,.gtbl tbody tr:hover .td-sd,.gtbl tbody tr:hover .td-ed{background:#eff6ff!important}
 
 /* 간트 바 */
 .bar{height:12px;margin:10px 0;border-radius:0}
@@ -1088,16 +1131,16 @@ tr.r-ms .td-id,tr.r-ms .td-nm,tr.r-ms .td-ow{background:#fffbeb}
     <div class="gb-logo">
       <div class="gb-logo-icon">📋</div>
       <div>
-        <div class="gb-logo-text">%%PROJECT_KEY%%</div>
+        <div class="gb-logo-text">%%WBS_PROJECT_NAME%%</div>
         <div class="gb-logo-sub">프로젝트 WBS 관리 시스템</div>
       </div>
     </div>
     <div class="gb-title">보안 로그인</div>
-    <div class="gb-sub">이 페이지는 프로젝트 팀원 전용입니다</div>
+    <div class="gb-sub">%%WBS_GATE_SUB%%</div>
     <input type="password" id="pw" placeholder="비밀번호 입력" onkeydown="if(event.key==='Enter')auth()"/>
     <button onclick="auth()">입장하기 →</button>
     <div class="gb-err" id="gerr"></div>
-    <div class="gb-footer">🔄 JIRA 자동 동기화 · 최종: %%LAST_UPDATE%%</div>
+    <div class="gb-footer">🔄 JIRA 전체 수집 · 데이터 기준일: %%SNAPSHOT_DATE%% · 최종: %%LAST_UPDATE%%</div>
   </div>
 </div>
 
@@ -1105,12 +1148,18 @@ tr.r-ms .td-id,tr.r-ms .td-nm,tr.r-ms .td-ow{background:#fffbeb}
 <div id="main">
 
 <header class="app-hdr">
-  <h1>📋 %%WBS_TITLE%%</h1>
-  <span class="hbadge hb-b">JIRA · %%PROJECT_KEY%%</span>
+  <h1>📋 %%WBS_PROJECT_NAME%%</h1>
+  <span class="hbadge hb-b">%%WBS_PROJECT_NAME%% 프로젝트</span>
   <span class="hbadge hb-g" id="h-done">%%DONE%%/%%TOTAL%% 완료</span>
   <span class="hbadge hb-a" id="h-pct">%%PCT%%%</span>
   <a class="jira-btn" href="%%BOARD_URL%%" target="_blank">↗ JIRA 보드</a>
-  <div class="sync"><span class="sdot"></span>%%LAST_UPDATE%% 동기화</div>
+  <div class="sync">
+    <span class="sdot"></span>
+    <span>기준일</span>
+    <select id="hdr-snap-sel" onchange="loadSnapshotByDate(this.value)" title="최근 10회 스냅샷 중 선택">
+      <option value="">— 로딩 중 —</option>
+    </select>
+  </div>
 </header>
 
 <!-- 전체 진척률 배너 -->
@@ -1154,7 +1203,7 @@ tr.r-ms .td-id,tr.r-ms .td-nm,tr.r-ms .td-ow{background:#fffbeb}
   <span class="tb-grp">영역</span>
   <button class="tbtn on" id="fa-all"    onclick="setA('all',this)">전체</button>
   <button class="tbtn"    id="fa-이지원" onclick="setA('이지원',this)">이지원</button>
-  <button class="tbtn"    id="fa-사이버" onclick="setA('사이버',this)">사이버</button>
+  <button class="tbtn"    id="fa-인터넷웹" onclick="setA('인터넷웹',this)">인터넷웹</button>
   <button class="tbtn"    id="fa-콜센터" onclick="setA('콜센터',this)">콜센터</button>
   <button class="tbtn"    id="fa-인프라" onclick="setA('인프라',this)">인프라</button>
   <button class="tbtn"    id="fa-PMO"   onclick="setA('PMO',this)">PMO</button>
@@ -1166,7 +1215,7 @@ tr.r-ms .td-id,tr.r-ms .td-nm,tr.r-ms .td-ow{background:#fffbeb}
   <button class="tbtn excel" onclick="exportExcel()">📊 Excel</button>
   <div class="legend">
     <div class="leg"><div class="leg-sq" style="background:#3b82f6"></div>이지원</div>
-    <div class="leg"><div class="leg-sq" style="background:#7c3aed"></div>사이버</div>
+    <div class="leg"><div class="leg-sq" style="background:#7c3aed"></div>인터넷웹</div>
     <div class="leg"><div class="leg-sq" style="background:#10b981"></div>콜센터</div>
     <div class="leg"><div class="leg-sq" style="background:#f59e0b"></div>인프라</div>
     <div class="leg"><div class="leg-sq" style="background:#64748b"></div>PMO</div>
@@ -1176,6 +1225,12 @@ tr.r-ms .td-id,tr.r-ms .td-nm,tr.r-ms .td-ow{background:#fffbeb}
 
 <!-- 날짜 이동 -->
 <div class="date-nav">
+  <span class="tb-grp">WBS 기준일</span>
+  <select id="snap-date-sel" onchange="loadSnapshotByDate(this.value)" style="padding:.25rem .5rem;border:1.5px solid #e2e8f0;border-radius:.28rem;font-size:.75rem;background:#fff;color:#1e293b;cursor:pointer;min-width:140px">
+    <option value="">— 로딩 중 —</option>
+  </select>
+  <span class="tb-grp" style="margin-left:.2rem">(최근 10회, 최신순)</span>
+  <div class="tsep"></div>
   📅 프로젝트: <strong id="date-range-label"></strong>
   <div class="tsep"></div>
   <div class="week-jump">
@@ -1235,11 +1290,18 @@ function weekStartDate(w){const d=new Date(PROJECT_START);d.setDate(d.getDate()+
 function fmtDate(d){return `${d.getMonth()+1}/${d.getDate()}`;}
 function fmtDateFull(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 
-const AC   ={이지원:'#3b82f6',사이버:'#7c3aed',콜센터:'#10b981',인프라:'#f59e0b',PMO:'#64748b'};
-const ACbg ={이지원:'#eff6ff',사이버:'#f5f3ff',콜센터:'#ecfdf5',인프라:'#fffbeb',PMO:'#f8fafc'};
-const ACtc ={이지원:'#1d4ed8',사이버:'#6d28d9',콜센터:'#065f46',인프라:'#b45309',PMO:'#475569'};
+const AC   ={이지원:'#3b82f6',인터넷웹:'#7c3aed',콜센터:'#10b981',인프라:'#f59e0b',PMO:'#64748b'};
+const ACbg ={이지원:'#eff6ff',인터넷웹:'#f5f3ff',콜센터:'#ecfdf5',인프라:'#fffbeb',PMO:'#f8fafc'};
+const ACtc ={이지원:'#1d4ed8',인터넷웹:'#6d28d9',콜센터:'#065f46',인프라:'#b45309',PMO:'#475569'};
 const SL   ={done:'완료',doing:'진행중',review:'검토중',todo:'대기'};
 const SC   ={done:'sb-done',doing:'sb-doing',review:'sb-review',todo:'sb-todo'};
+
+// 스냅샷 이슈 → D 배열 (이력과 동일 로직, 기존 스냅샷으로 조회)
+function dateToWeek(ds){ if(!ds)return null; const d=new Date(ds),delta=Math.floor((d-PROJECT_START)/86400000); if(delta<0)return 1; return Math.min(Math.floor(delta/7)+1,TW); }
+function detectAreaSnap(summary,labels,components){ const txt=[summary,...(labels||[]),...(components||[])].join(' ').toLowerCase(); if(['이지원','마이다스','법인','ocr','챗봇','팩토리','상품','app','고도화'].some(k=>txt.includes(k)))return '이지원'; if(['사이버','보안','사이버보증','인터넷','웹'].some(k=>txt.includes(k)))return '인터넷웹'; if(['콜센터','상담','ars','보이는ars'].some(k=>txt.includes(k)))return '콜센터'; if(['인프라','서버','소스코드','응답시간','성능','형상'].some(k=>txt.includes(k)))return '인프라'; return 'PMO'; }
+function mapStatusSnap(s){ s=(s||'').toLowerCase(); if(['done','complete','closed','resolved','완료','종료'].some(x=>s.includes(x)))return 'done'; if(['review','qa','검토','리뷰'].some(x=>s.includes(x)))return 'review'; if(['progress','develop','진행','개발'].some(x=>s.includes(x)))return 'doing'; return 'todo'; }
+function issueToTaskSnap(iss,wbsId){ const sw=dateToWeek(iss.start_date)||1,ew=dateToWeek(iss.due_date)||sw; return {id:wbsId,jiraKey:iss.key,jiraUrl:JIRA_BASE?JIRA_BASE+'/browse/'+iss.key:'',n:iss.summary,t:'t',area:detectAreaSnap(iss.summary,iss.labels,iss.components),owner:iss.assignee||'',priority:iss.priority||'',s:sw,e:ew,st:mapStatusSnap(iss.status),sd:iss.start_date,ed:iss.due_date}; }
+function buildDFromSnapshot(issues){ const epicIssues={},nonEpics=[]; issues.forEach(i=>{ if((i.issue_type||'').toLowerCase()==='epic')epicIssues[i.key]=i; else if((i.issue_type||'').toLowerCase()!=='sub-task')nonEpics.push(i); }); const hasEpics=Object.keys(epicIssues).length>0; const D=[]; if(hasEpics){ const epicMap={}; const unassigned=[]; Object.keys(epicIssues).forEach(k=>epicMap[k]=[]); nonEpics.forEach(iss=>{ const ek=iss.epic_link||(iss.parent_key&&epicIssues[iss.parent_key]?iss.parent_key:null); if(ek&&epicMap[ek])epicMap[ek].push(iss); else unassigned.push(iss); }); if(unassigned.length){ const tasks=unassigned.map((iss,j)=>issueToTaskSnap(iss,'0.'+(j+1))); const sw2=Math.min(...tasks.map(t=>t.s)),ew2=Math.max(...tasks.map(t=>t.e)); D.push({id:'P0',n:'미분류',t:'p',area:'PMO',owner:'',s:sw2,e:ew2,st:'todo'}); D.push(...tasks); } let pi=1; Object.entries(epicIssues).forEach(([k,epic])=>{ const tasks=epicMap[k]||[]; const taskRows=tasks.map((iss,j)=>issueToTaskSnap(iss,pi+'.'+(j+1))); const sw=dateToWeek(epic.start_date)||1,ew=dateToWeek(epic.due_date)||sw; const tsw=taskRows.length?Math.min(...taskRows.map(t=>t.s)):sw,tew=taskRows.length?Math.max(...taskRows.map(t=>t.e)):ew; D.push({id:'P'+pi,jiraKey:k,jiraUrl:JIRA_BASE?JIRA_BASE+'/browse/'+k:'',n:epic.summary,t:'p',area:detectAreaSnap(epic.summary,epic.labels,epic.components),owner:epic.assignee,priority:epic.priority||'',s:Math.min(sw,tsw),e:Math.max(ew,tew),st:mapStatusSnap(epic.status)}); D.push(...taskRows); pi++; }); }else{ const topLevel=[],children={}; issues.forEach(iss=>{ if(iss.parent_key)children[iss.parent_key]=(children[iss.parent_key]||[]).concat([iss]); else topLevel.push(iss); }); topLevel.forEach((par,i)=>{ const kids=children[par.key]||[]; const tasks=kids.length?kids.map((k,j)=>issueToTaskSnap(k,(i+1)+'.'+(j+1))):[issueToTaskSnap(par,(i+1)+'.1')]; const sw=dateToWeek(par.start_date)||1,ew=dateToWeek(par.due_date)||sw; const tsw=Math.min(...tasks.map(t=>t.s)),tew=Math.max(...tasks.map(t=>t.e)); D.push({id:'P'+(i+1),jiraKey:par.key,jiraUrl:JIRA_BASE?JIRA_BASE+'/browse/'+par.key:'',n:par.summary,t:'p',area:detectAreaSnap(par.summary,par.labels,par.components),owner:par.assignee,priority:par.priority||'',s:Math.min(sw,tsw),e:Math.max(ew,tew),st:mapStatusSnap(par.status)}); D.push(...tasks); }); } return D; }
 
 // ═══ 초기화 ══════════════════════════════════════════════════
 function initSelects(){
@@ -1269,11 +1331,34 @@ function initSelects(){
     ti.textContent=`🗓 프로젝트 시작 전`,ti.style.color='#7c3aed';
 }
 
+// ═══ 스냅샷 기준 통계 갱신 ═════════════════════════════════════
+function updateStats(){
+  const tasks=D.filter(r=>r.t==='t');
+  const total=tasks.length;
+  const done=tasks.filter(r=>r.st==='done').length;
+  const doing=tasks.filter(r=>r.st==='doing').length;
+  const review=tasks.filter(r=>r.st==='review').length;
+  const todo=tasks.filter(r=>r.st==='todo').length;
+  const pct=total?Math.round(done/total*100):0;
+  const el=(id)=>document.getElementById(id);
+  if(el('s-t'))el('s-t').textContent=total;
+  if(el('s-d'))el('s-d').textContent=done;
+  if(el('s-g'))el('s-g').textContent=doing;
+  if(el('s-r'))el('s-r').textContent=review;
+  if(el('s-n'))el('s-n').textContent=todo;
+  if(el('pb-pct'))el('pb-pct').textContent=pct+'%';
+  if(el('pb-fill'))el('pb-fill').style.width=pct+'%';
+  if(el('h-done'))el('h-done').textContent=done+'/'+total+' 완료';
+  if(el('h-pct'))el('h-pct').textContent=pct+'%';
+  const pd=el('pb-detail');
+  if(pd)pd.innerHTML='<span class="pb-stat"><span class="pbs-dot" style="background:#22c55e"></span>완료 '+done+'</span><span class="pb-stat"><span class="pbs-dot" style="background:#38bdf8"></span>진행 '+doing+'</span><span class="pb-stat"><span class="pbs-dot" style="background:#fbbf24"></span>검토 '+review+'</span><span class="pb-stat"><span class="pbs-dot" style="background:#e2e8f0"></span>대기 '+todo+'</span>';
+}
+
 // ═══ 영역 카드 ═══════════════════════════════════════════════
 function renderAreaCards(){
   const tasks=D.filter(r=>r.t==='t');
-  const AREAS=['이지원','사이버','콜센터','인프라','PMO'];
-  const NAMES={이지원:'이지원 시스템',사이버:'사이버보안',콜센터:'콜센터',인프라:'공통 인프라',PMO:'PMO'};
+  const AREAS=['이지원','인터넷웹','콜센터','인프라','PMO'];
+  const NAMES={이지원:'이지원 시스템',인터넷웹:'인터넷웹',콜센터:'콜센터',인프라:'공통 인프라',PMO:'PMO'};
   const el=document.getElementById('area-cards');
   el.innerHTML='';
   AREAS.forEach(area=>{
@@ -1311,7 +1396,7 @@ function render(){
 
   // 헤더 행1 : 월
   const hr1=thead.insertRow();
-  hr1.innerHTML='<th class="th-id" rowspan="2">ID</th><th class="th-nm" rowspan="2">작업명 / JIRA 이슈</th><th class="th-ow" rowspan="2">담당</th>';
+  hr1.innerHTML='<th class="th-id" rowspan="2">ID</th><th class="th-nm" rowspan="2">작업명 / JIRA 이슈</th><th class="th-ow" rowspan="2">담당</th><th class="th-sd" rowspan="2">시작일</th><th class="th-ed" rowspan="2">종료일</th>';
   MONTHS.forEach(m=>{
     const vs=Math.max(m.s,from), ve=Math.min(m.e,to);
     if(vs>ve) return;
@@ -1319,6 +1404,15 @@ function render(){
     th.className='th-mo'; th.colSpan=ve-vs+1; th.textContent='2026년 '+m.n;
     hr1.appendChild(th);
   });
+
+  // 작업명 열 리사이즈 핸들
+  const thNm=tbl.querySelector('.th-nm');
+  if(thNm){
+    thNm.style.position='relative';
+    let handle=thNm.querySelector('.col-resize');
+    if(!handle){handle=document.createElement('div');handle.className='col-resize';handle.title='드래그하여 작업명 열 너비 조절';thNm.appendChild(handle);}
+    handle.onmousedown=function(e){e.preventDefault();const startX=e.clientX;const startW=parseInt(getComputedStyle(document.documentElement).getPropertyValue('--col-nm-w')||'320',10)||320;function move(e2){const dx=e2.clientX-startX;let w=Math.max(260,Math.min(600,startW+dx));document.documentElement.style.setProperty('--col-nm-w',w+'px');}function up(){document.removeEventListener('mousemove',move);document.removeEventListener('mouseup',up);}document.addEventListener('mousemove',move);document.addEventListener('mouseup',up);};
+  }
 
   // 헤더 행2 : 주차
   const hr2=thead.insertRow();
@@ -1394,15 +1488,9 @@ function render(){
         const bd=document.createElement('span');
         bd.className='sbadge '+SC[row.st]; bd.textContent=SL[row.st];
         rl.appendChild(bd);
-        const sd_str=row.sd?row.sd.slice(5).replace('-','/'):`${fmtDate(weekStartDate(row.s))}`;
-        const ed_str=row.ed?row.ed.slice(5).replace('-','/'):`${fmtDate(new Date(weekStartDate(row.e).getTime()+6*86400000))}`;
-        const dts=document.createElement('span');
-        dts.className='task-dts';
-        dts.textContent=`${sd_str}~${ed_str}`;
-        dts.title=row.sd?`JIRA 날짜: ${row.sd} ~ ${row.ed||'미정'}`:'WBS 계산값';
-        rl.appendChild(dts);
       }
     }
+    tdn.title=row.n+(row.jiraKey?' ['+row.jiraKey+']':'');
     tdn.appendChild(rl);
 
     // 담당 셀
@@ -1414,6 +1502,16 @@ function render(){
       chip.textContent=row.owner; chip.title=row.owner;
       tdow.appendChild(chip);
     }
+
+    // 시작일 셀
+    const tdsd=tr.insertCell(); tdsd.className='td-sd';
+    const startStr=row.sd||(row.s?fmtDateFull(weekStartDate(row.s)):'');
+    tdsd.textContent=startStr; if(startStr)tdsd.title=startStr;
+
+    // 종료일 셀
+    const tded=tr.insertCell(); tded.className='td-ed';
+    const endStr=row.ed||(row.e?fmtDateFull(new Date(weekStartDate(row.e).getTime()+6*86400000)):'');
+    tded.textContent=endStr; if(endStr)tded.title=endStr;
 
     // 주차 셀
     for(let w=from;w<=to;w++){
@@ -1446,7 +1544,7 @@ function render(){
 // ═══ 컨트롤 ══════════════════════════════════════════════════
 function togP(pid){pOpen[pid]=!pOpen[pid];render();}
 function setF(f,btn){flt=f;['all','todo','doing','review','done'].forEach(x=>document.getElementById('f-'+x)?.classList.toggle('on',x===f));render();}
-function setA(a,btn){curArea=a;['all','이지원','사이버','콜센터','인프라','PMO'].forEach(x=>document.getElementById('fa-'+x)?.classList.toggle('on',x===a));render();}
+function setA(a,btn){curArea=a;['all','이지원','인터넷웹','콜센터','인프라','PMO'].forEach(x=>document.getElementById('fa-'+x)?.classList.toggle('on',x===a));render();}
 function expAll(){D.filter(r=>r.t==='p').forEach(r=>pOpen[r.id]=true);render();}
 function colAll(){D.filter(r=>r.t==='p').forEach(r=>pOpen[r.id]=false);render();}
 function renderReset(){render();document.getElementById('gscroll').scrollLeft=0;}
@@ -1482,31 +1580,41 @@ function jumpToWeek(w){
   document.getElementById('weekSel').value=w;
 }
 
-// ═══ Excel 내보내기 ═══════════════════════════════════════════
+// ═══ Excel 내보내기 (웹 화면 그대로: ID·작업명·담당·시작일·종료일 순) ═══════════════════════════════════════════
 function exportExcel(){
   if(typeof XLSX==='undefined'){alert('SheetJS 로딩 중입니다.');return;}
   const wb=XLSX.utils.book_new();
-  // Sheet1: WBS 전체
-  const h1=['ID','JIRA Key','구분','작업명','업무영역','담당자','상태','시작주','종료주','기간(주)','시작일','종료일'];
+  // Sheet1: 웹 보기와 동일 — 화면 테이블과 같은 열 순서
+  const h1=['ID','작업명','JIRA Key','담당','시작일','종료일','구분','업무영역','상태','기간(주)'];
   const rows=D.map(r=>{
-    const sd=weekStartDate(r.s),ed=new Date(weekStartDate(r.e));ed.setDate(ed.getDate()+6);
-    return[r.id,r.jiraKey||'',{p:'Phase',t:'Task',m:'Milestone'}[r.t],r.n,r.area,r.owner||'',SL[r.st]||r.st,r.s,r.e,r.e-r.s+1,fmtDateFull(sd),fmtDateFull(ed)];
+    const sd=r.sd||(r.s?fmtDateFull(weekStartDate(r.s)):''),ed=r.ed||(r.e?fmtDateFull(new Date(weekStartDate(r.e).getTime()+6*86400000)):'');
+    return[r.id,r.n,r.jiraKey||'',r.owner||'',sd,ed,{p:'Phase',t:'Task',m:'Milestone'}[r.t],r.area,SL[r.st]||r.st,r.t==='m'?0:r.e-r.s+1];
   });
   const ws1=XLSX.utils.aoa_to_sheet([h1,...rows]);
-  ws1['!cols']=[{wch:8},{wch:12},{wch:8},{wch:38},{wch:8},{wch:12},{wch:8},{wch:6},{wch:6},{wch:6},{wch:12},{wch:12}];
-  XLSX.utils.book_append_sheet(wb,ws1,'WBS 전체');
-  // Sheet2: Phase별
-  const h2=['Phase','JIRA Key','Phase명','전체','완료','진행중','검토중','대기','진척률(%)'];
+  ws1['!cols']=[{wch:10},{wch:48},{wch:14},{wch:12},{wch:12},{wch:12},{wch:8},{wch:10},{wch:8},{wch:8}];
+  ws1['!freeze']={xSplit:0,ySplit:1};
+  XLSX.utils.book_append_sheet(wb,ws1,'웹 보기와 동일');
+  // Sheet2: 상세 (기존 WBS 전체)
+  const h2=['ID','JIRA Key','구분','작업명','업무영역','담당자','우선순위','상태','시작주','종료주','기간(주)','시작일','종료일'];
+  const rows2=D.map(r=>{
+    const sd=weekStartDate(r.s),ed=new Date(weekStartDate(r.e));ed.setDate(ed.getDate()+6);
+    return[r.id,r.jiraKey||'',{p:'Phase',t:'Task',m:'Milestone'}[r.t],r.n,r.area,r.owner||'',r.priority||'',SL[r.st]||r.st,r.s,r.e,r.e-r.s+1,fmtDateFull(sd),fmtDateFull(ed)];
+  });
+  const ws2=XLSX.utils.aoa_to_sheet([h2,...rows2]);
+  ws2['!cols']=[{wch:10},{wch:14},{wch:8},{wch:48},{wch:10},{wch:14},{wch:10},{wch:8},{wch:7},{wch:7},{wch:8},{wch:12},{wch:12}];
+  XLSX.utils.book_append_sheet(wb,ws2,'WBS 상세');
+  // Sheet3: Phase별
+  const hPhase=['Phase','JIRA Key','Phase명','전체','완료','진행중','검토중','대기','진척률(%)'];
   let cp=null;const pm={};
   D.forEach(r=>{if(r.t==='p'){cp=r.id;pm[r.id]={ph:r,kids:[]};}else if(r.t==='t'&&cp)pm[cp].kids.push(r);});
   const pr2=Object.values(pm).map(({ph,kids})=>{
     const tot=kids.length,dn=kids.filter(k=>k.st==='done').length,dg=kids.filter(k=>k.st==='doing').length,rv=kids.filter(k=>k.st==='review').length,td=kids.filter(k=>k.st==='todo').length;
     return[ph.id,ph.jiraKey||'',ph.n,tot,dn,dg,rv,td,tot?Math.round(dn/tot*100):0];
   });
-  const ws2=XLSX.utils.aoa_to_sheet([h2,...pr2]);
-  ws2['!cols']=[{wch:6},{wch:12},{wch:20},{wch:6},{wch:6},{wch:6},{wch:6},{wch:6},{wch:8}];
-  XLSX.utils.book_append_sheet(wb,ws2,'Phase 진척');
-  // Sheet3: 담당자별
+  const wsPhase=XLSX.utils.aoa_to_sheet([hPhase,...pr2]);
+  wsPhase['!cols']=[{wch:6},{wch:12},{wch:20},{wch:6},{wch:6},{wch:6},{wch:6},{wch:6},{wch:8}];
+  XLSX.utils.book_append_sheet(wb,wsPhase,'Phase 진척');
+  // Sheet4: 담당자별
   const h3=['담당자','소속영역','담당 Task수','완료','진행중','대기','진척률(%)'];
   const om={};
   D.filter(r=>r.t==='t').forEach(r=>{const k=r.owner||'미지정';if(!om[k])om[k]={owner:k,area:r.area,tasks:[]};om[k].tasks.push(r);});
@@ -1517,13 +1625,67 @@ function exportExcel(){
   const ws3=XLSX.utils.aoa_to_sheet([h3,...pr3]);
   ws3['!cols']=[{wch:14},{wch:10},{wch:10},{wch:6},{wch:6},{wch:6},{wch:8}];
   XLSX.utils.book_append_sheet(wb,ws3,'담당자별');
-  XLSX.writeFile(wb,'WBS_%%PROJECT_KEY%%_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  // Sheet5: 마일스톤
+  const h4=['ID','JIRA Key','마일스톤명','주차','예정일','담당','상태'];
+  const pr4=D.filter(r=>r.t==='m').map(r=>[r.id,r.jiraKey||'',(r.n||'').replace(/^◆\\s*/, ''),r.s,fmtDateFull(weekStartDate(r.s)),r.owner||'',SL[r.st]||r.st]);
+  const ws4=XLSX.utils.aoa_to_sheet([h4,...pr4]);
+  ws4['!cols']=[{wch:10},{wch:14},{wch:45},{wch:6},{wch:12},{wch:12},{wch:8}];
+  XLSX.utils.book_append_sheet(wb,ws4,'마일스톤');
+  XLSX.writeFile(wb,'WBS_%%WBS_EXCEL_NAME%%_'+new Date().toISOString().slice(0,10)+'.xlsx');
 }
 
-// ═══ 초기화 ══════════════════════════════════════════════════
-function init(){
+// ═══ 스냅샷 날짜 선택 시 해당 WBS 로드 ══════════════════════════════════════════════════
+async function loadSnapshotByDate(date){
+  if(!date)return;
+  try{
+    const r=await fetch('./data/snapshots/'+date+'.json');
+    const snap=await r.json();
+    if(snap.issues&&snap.issues.length>0){
+      const newD=buildDFromSnapshot(snap.issues);
+      D.length=0; D.push(...newD);
+      D.filter(r=>r.t==='p').forEach(r=>pOpen[r.id]=true);
+      updateStats();
+      render();
+      const hdrSel=document.getElementById('hdr-snap-sel');
+      const navSel=document.getElementById('snap-date-sel');
+      if(hdrSel&&hdrSel.value!==date)hdrSel.value=date;
+      if(navSel&&navSel.value!==date)navSel.value=date;
+      if(TODAY_W_INIT>=1&&TODAY_W_INIT<=TW) setTimeout(()=>jumpToWeek(TODAY_W_INIT),100);
+    }
+  }catch(e){ console.error('스냅샷 로드 실패:',e); }
+}
+
+// ═══ 초기화 (snapshots 폴더 최근 10개 날짜 중 선택해 조회) ══════════════════════════════════════════════════
+function fillSnapshotSelects(list){
+  const hdrSel=document.getElementById('hdr-snap-sel');
+  const navSel=document.getElementById('snap-date-sel');
+  const opts=[]; list.forEach(s=>{opts.push({value:s.date,text:s.date+' ('+(s.count||0)+'건)'});});
+  [hdrSel,navSel].filter(Boolean).forEach(sel=>{
+    sel.innerHTML='';
+    if(!opts.length){sel.innerHTML='<option value="">— 스냅샷 없음 —</option>';return;}
+    opts.forEach(({value,text})=>{const o=document.createElement('option');o.value=value;o.textContent=text;sel.appendChild(o);});
+  });
+}
+async function init(){
+  const hdrSel=document.getElementById('hdr-snap-sel');
+  const navSel=document.getElementById('snap-date-sel');
+  try{
+    const r=await fetch('./data/snapshots/index.json');
+    const idx=await r.json();
+    const list=idx.snapshots&&idx.snapshots.length?idx.snapshots.slice(0,10):[];
+    fillSnapshotSelects(list);
+    if(list.length>0){
+      const firstDate=list[0].date;
+      if(hdrSel)hdrSel.value=firstDate;
+      if(navSel)navSel.value=firstDate;
+      await loadSnapshotByDate(firstDate);
+    }
+  }catch(e){
+    if(hdrSel)hdrSel.innerHTML='<option value="">— 로드 실패 —</option>';
+    if(navSel)navSel.innerHTML='<option value="">— 로드 실패 —</option>';
+  }
   initSelects();
-  render();
+  if(D.length>0){ updateStats(); render(); }
   if(TODAY_W_INIT>=1&&TODAY_W_INIT<=TW) setTimeout(()=>jumpToWeek(TODAY_W_INIT),400);
 }
 </script>
@@ -1543,12 +1705,12 @@ def main():
         JIRA_FIELDS.append(start_field)
         START_DATE_CANDIDATES.insert(0, start_field)
 
-    # 전체 이슈 1회 fetch (최대 5000개)
+    # JIRA 프로젝트 전체 이슈 1회 fetch (날짜별 이력용 스냅샷 + index.html 구성)
     all_issues = client.search(
         f'project = "{PROJECT_KEY}" ORDER BY rank ASC, created ASC',
-        max_results=5000
+        max_results=10000
     )
-    print(f"  • 전체 이슈: {len(all_issues)}개")
+    print(f"  • JIRA 전체 이슈: {len(all_issues)}개")
 
     # 일별 스냅샷 저장
     snap_path = save_snapshot(all_issues)
@@ -1561,8 +1723,9 @@ def main():
     done  = sum(1 for t in tasks if t["st"] == "done")
     print(f"✅ 수집 완료: Phase {sum(1 for r in D if r['t']=='p')}개 / Task {len(tasks)}개 (완료 {done}개)")
 
-    # docs/index.html 생성
-    html = build_html(D)
+    # docs/index.html 생성 (데이터는 스냅샷에서 로드하므로 초기 D는 빈 배열로 생성해 용량 절감)
+    snapshot_date = today_str()
+    html = build_html([], snapshot_date=snapshot_date)
     os.makedirs(os.path.dirname(OUTPUT_PATH) or ".", exist_ok=True)
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
         f.write(html)

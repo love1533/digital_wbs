@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>WBS 현황 — 이력 조회</title>
+<title>프로젝트 WBS — 이력 조회</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f4f8;color:#1e293b;font-size:13px}
@@ -82,7 +82,7 @@ select.date-sel{padding:.28rem .6rem;border:1.5px solid #e2e8f0;border-radius:.3
 </div>
 <div id="main">
   <div class="app-hdr">
-    <span class="app-hdr-title">📅 WBS 현황 — 이력 조회</span>
+    <span class="app-hdr-title">📅 프로젝트 WBS — 이력 조회</span>
     <span class="app-hdr-sub" id="snap-info">스냅샷 로딩 중...</span>
     <span style="flex:1"></span>
     <a href="index.html" class="hdr-link">← 현재 WBS</a>
@@ -105,14 +105,14 @@ select.date-sel{padding:.28rem .6rem;border:1.5px solid #e2e8f0;border-radius:.3
   <div id="gantt-view" style="display:none"></div>
 </div>
 <script>
-const PW_HASH="3e4df03324f19acc8efdb00a9f162cb279a64e06dc662ac5fcd6d17ca5917b83";
-const JIRA_BASE="";
-const PROJECT_KEY="";
+const PW_HASH="963a762234d48d6b69c55793e8bebfd96d1fefbf648e7edc55ebd99a17b1242d";
+const JIRA_BASE="https://gcgfmobile.atlassian.net";
+const PROJECT_KEY="GCGF0323";
 const PROJECT_START=new Date("2026-03-23");
 const TOTAL_WEEKS=32;
 const MONTHS=[{"n": "3월", "s": 1, "e": 2}, {"n": "4월", "s": 3, "e": 6}, {"n": "5월", "s": 7, "e": 10}, {"n": "6월", "s": 11, "e": 15}, {"n": "7월", "s": 16, "e": 19}, {"n": "8월", "s": 20, "e": 24}, {"n": "9월", "s": 25, "e": 28}, {"n": "10월", "s": 29, "e": 32}];
-const AC={'이지원':'#3b82f6','사이버':'#8b5cf6','콜센터':'#10b981','인프라':'#f59e0b','PMO':'#94a3b8'};
-const BC={'이지원':'#2563eb','사이버':'#7c3aed','콜센터':'#059669','인프라':'#d97706','PMO':'#64748b'};
+const AC={'이지원':'#3b82f6','인터넷웹':'#8b5cf6','콜센터':'#10b981','인프라':'#f59e0b','PMO':'#94a3b8'};
+const BC={'이지원':'#2563eb','인터넷웹':'#7c3aed','콜센터':'#059669','인프라':'#d97706','PMO':'#64748b'};
 
 // ── 인증 ──
 async function sha256(msg){
@@ -138,7 +138,7 @@ function fmtDate(d){return(d.getMonth()+1)+'/'+(d.getDate());}
 function detectArea(summary,labels,components){
   const txt=[summary,...(labels||[]),...(components||[])].join(' ').toLowerCase();
   if(['이지원','마이다스','법인','공동대표','ocr','챗봇','팩토리','상품','app','고도화'].some(k=>txt.includes(k)))return '이지원';
-  if(['사이버','보안','사이버보증'].some(k=>txt.includes(k)))return '사이버';
+  if(['사이버','보안','사이버보증','인터넷','웹'].some(k=>txt.includes(k)))return '인터넷웹';
   if(['콜센터','상담','ars','보이는ars'].some(k=>txt.includes(k)))return '콜센터';
   if(['인프라','서버','소스코드','응답시간','성능','형상'].some(k=>txt.includes(k)))return '인프라';
   return 'PMO';
@@ -170,7 +170,7 @@ async function init(){
         o.value=s.date;o.textContent=s.date+' ('+s.count+'건)';sel.appendChild(o);
       });
     });
-    document.getElementById('snap-info').textContent='스냅샷 '+idx.snapshots.length+'개 | 프로젝트: '+PROJECT_KEY;
+    document.getElementById('snap-info').textContent='스냅샷 '+idx.snapshots.length+'개 | 프로젝트: '+(idx.project_key||PROJECT_KEY);
     if(idx.snapshots.length>0){s1.value=idx.snapshots[0].date;loadSnapshot(idx.snapshots[0].date);}
   }catch(e){document.getElementById('snap-info').textContent='스냅샷 없음 (Actions 실행 후 생성됩니다)';}
 }
