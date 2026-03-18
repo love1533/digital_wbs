@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-JIRA Cloud → WBS HTML Generator
+JIRA Cloud → WBS Gantt HTML Generator  (v3)
 ────────────────────────────────────────────────────────────
 지원 프로젝트 유형:
-  • JIRA Software  : Epic → Phase, Story/Task → WBS 작업
-  • JIRA Work Management (Core) : 최상위 Task → Phase, 하위 Task → WBS 작업
+  • JIRA Software  : Epic → Phase, Story/Task → WBS Task
+  • JIRA Work Management (Core) : 최상위 Task → Phase, 하위 Task → WBS Task
 
 필수 환경변수:
   JIRA_URL          예) https://gcgfmobile.atlassian.net
@@ -14,15 +14,14 @@ JIRA Cloud → WBS HTML Generator
   WBS_PASSWORD      HTML 접근 비밀번호 (기본값: wbs2026)
 
 선택 환경변수:
-  WBS_OUTPUT        출력 경로 (기본값: docs/index.html)
-  WBS_TITLE         페이지 제목 (기본값: 프로젝트 WBS)
+  WBS_OUTPUT           출력 경로   (기본: docs/index.html)
+  WBS_TITLE            페이지 제목 (기본: 프로젝트 WBS)
+  PROJECT_START_DATE   프로젝트 시작일 YYYY-MM-DD (기본: 2026-03-23)
+  TOTAL_WEEKS          총 주차 수  (기본: 32)
 """
 
-import os
-import sys
-import json
-import hashlib
-from datetime import datetime
+import os, sys, json, hashlib
+from datetime import datetime, timedelta
 
 try:
     import requests
@@ -31,37 +30,51 @@ except ImportError:
     print("❌ requests 모듈이 필요합니다: pip install requests")
     sys.exit(1)
 
-# ── Configuration ─────────────────────────────────────────────────────────────
-JIRA_URL     = os.environ.get("JIRA_URL", "").rstrip("/")
-JIRA_EMAIL   = os.environ.get("JIRA_EMAIL", "")
-JIRA_TOKEN   = os.environ.get("JIRA_API_TOKEN", "")
-PROJECT_KEY  = os.environ.get("JIRA_PROJECT_KEY", "")
-WBS_PASSWORD = os.environ.get("WBS_PASSWORD", "wbs2026")
-OUTPUT_PATH  = os.environ.get("WBS_OUTPUT", "docs/index.html")
-WBS_TITLE    = os.environ.get("WBS_TITLE", "프로젝트 WBS")
+# ── 환경변수 ──────────────────────────────────────────────────────────────────
+JIRA_URL        = os.environ.get("JIRA_URL", "").rstrip("/")
+JIRA_EMAIL      = os.environ.get("JIRA_EMAIL", "")
+JIRA_TOKEN      = os.environ.get("JIRA_API_TOKEN", "")
+PROJECT_KEY     = os.environ.get("JIRA_PROJECT_KEY", "")
+WBS_PASSWORD    = os.environ.get("WBS_PASSWORD", "wbs2026")
+OUTPUT_PATH     = os.environ.get("WBS_OUTPUT", "docs/index.html")
+WBS_TITLE       = os.environ.get("WBS_TITLE", "프로젝트 WBS")
+PROJECT_START_S = os.environ.get("PROJECT_START_DATE", "2026-03-23")
+TOTAL_WEEKS     = int(os.environ.get("TOTAL_WEEKS", "32"))
 
-# 업무영역 자동 감지 키워드
+try:
+    PROJECT_START = datetime.strptime(PROJECT_START_S, "%Y-%m-%d")
+except ValueError:
+    print(f"⚠ PROJECT_START_DATE 형식 오류({PROJECT_START_S}), 2026-03-23 사용")
+    PROJECT_START = datetime(2026, 3, 23)
+
+# 업무영역 감지 키워드
 AREA_KEYWORDS = {
-    "이지원": ["이지원", "ezwon", "document", "문서", "전자결재", "결재", "기안"],
-    "사이버": ["사이버", "cyber", "security", "보안", "인증", "취약점", "iam"],
+    "이지원": ["이지원", "ezwon", "document", "문서", "전자결재", "결재", "기안", "모바일"],
+    "사이버": ["사이버", "cyber", "security", "보안", "인증", "취약점", "iam", "방화벽"],
     "콜센터": ["콜센터", "callcenter", "call", "cti", "ivr", "상담", "녹취"],
-    "인프라": ["인프라", "infra", "infrastructure", "server", "서버", "네트워크", "db", "배포"],
+    "인프라": ["인프라", "infra", "infrastructure", "server", "서버", "네트워크", "db", "배포", "형상관리"],
 }
 
+# JIRA 가져올 필드 목록
 JIRA_FIELDS = [
     "summary", "status", "priority", "assignee", "duedate",
     "labels", "components", "subtasks", "parent",
-    "customfield_10014",   # Epic Link (classic Software)
-    "customfield_10016",   # Story Points
+    "customfield_10014",  # Epic Link (classic Software)
+    "customfield_10015",  # Start Date
+    "customfield_10020",  # Sprint
     "issuetype", "created", "updated",
 ]
 
 
-# ── Helpers ────────────────────────────────────────────────────────────────────
+# ── 유틸 ──────────────────────────────────────────────────────────────────────
+def sha256_hex(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
 def detect_area(components: list, labels: list, summary: str) -> str:
     texts = [s.lower() for s in components + labels + [summary]]
-    for area, keywords in AREA_KEYWORDS.items():
-        if any(kw in text for kw in keywords for text in texts):
+    for area, kws in AREA_KEYWORDS.items():
+        if any(kw in t for kw in kws for t in texts):
             return area
     return "PMO"
 
@@ -70,24 +83,45 @@ def map_status(jira_status: str) -> str:
     s = jira_status.lower()
     if any(x in s for x in ["done", "complete", "closed", "resolved", "완료", "종료"]):
         return "done"
-    if any(x in s for x in ["review", "qa", "test", "검토", "리뷰", "테스트", "in review"]):
+    if any(x in s for x in ["review", "qa", "검토", "리뷰", "in review"]):
         return "review"
-    if any(x in s for x in ["progress", "develop", "in_progress", "진행", "개발", "in progress"]):
+    if any(x in s for x in ["progress", "develop", "진행", "개발", "in progress"]):
         return "doing"
     return "todo"
 
 
-def sha256_hex(text: str) -> str:
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+def date_to_week(date_str: str) -> int | None:
+    """날짜 문자열(YYYY-MM-DD) → 프로젝트 주차 (1-based, 범위 클램프)"""
+    if not date_str:
+        return None
+    try:
+        d = datetime.strptime(date_str[:10], "%Y-%m-%d")
+        delta = (d - PROJECT_START).days
+        if delta < 0:
+            return 1
+        w = delta // 7 + 1
+        return min(w, TOTAL_WEEKS)
+    except Exception:
+        return None
 
 
-# ── JIRA API Client ────────────────────────────────────────────────────────────
+def today_str() -> str:
+    return datetime.now().strftime("%Y-%m-%d")
+
+
+def today_week() -> int:
+    delta = (datetime.now() - PROJECT_START).days
+    if delta < 0:
+        return 0
+    return min(delta // 7 + 1, TOTAL_WEEKS)
+
+
+# ── JIRA API 클라이언트 ────────────────────────────────────────────────────────
 class JiraClient:
     def __init__(self):
         if not all([JIRA_URL, JIRA_EMAIL, JIRA_TOKEN, PROJECT_KEY]):
             raise ValueError(
-                "JIRA_URL / JIRA_EMAIL / JIRA_API_TOKEN / JIRA_PROJECT_KEY "
-                "환경변수를 모두 설정해주세요."
+                "JIRA_URL / JIRA_EMAIL / JIRA_API_TOKEN / JIRA_PROJECT_KEY 환경변수를 모두 설정해주세요."
             )
         self.auth    = HTTPBasicAuth(JIRA_EMAIL, JIRA_TOKEN)
         self.base    = f"{JIRA_URL}/rest/api/3"
@@ -109,14 +143,13 @@ class JiraClient:
                 "jql": jql, "startAt": start, "maxResults": batch,
                 "fields": ",".join(JIRA_FIELDS),
             })
-            issues.extend(data["issues"])
-            if not data["issues"] or len(issues) >= data["total"] or len(issues) >= max_results:
+            issues.extend(data.get("issues", []))
+            if not data.get("issues") or len(issues) >= data.get("total", 0) or len(issues) >= max_results:
                 break
             start += len(data["issues"])
         return issues
 
     def project_type(self) -> str:
-        """'software' 또는 'business' (Work Management) 반환"""
         try:
             data = self._get(f"project/{PROJECT_KEY}")
             return data.get("projectTypeKey", "business")
@@ -124,474 +157,783 @@ class JiraClient:
             return "business"
 
 
-# ── Task 객체 생성 헬퍼 ────────────────────────────────────────────────────────
-def make_task(issue: dict, phase_idx: int, task_idx: int) -> dict:
-    sf      = issue["fields"]
-    comps   = [c["name"] for c in (sf.get("components") or [])]
-    labels  = sf.get("labels") or []
-    subs    = []
-    for st in (sf.get("subtasks") or []):
-        stf = st.get("fields") or {}
-        subs.append({
-            "key":    st["key"],
-            "name":   stf.get("summary", ""),
-            "status": map_status((stf.get("status") or {}).get("name", "To Do")),
-        })
+# ── D-배열 항목 생성 ──────────────────────────────────────────────────────────
+def _extract_dates(fields: dict) -> tuple[int, int]:
+    """JIRA fields → (start_week, end_week)"""
+    start_raw = (
+        fields.get("startdate")
+        or fields.get("customfield_10015")
+        or fields.get("created", "")[:10]
+    )
+    end_raw   = fields.get("duedate") or ""
+
+    sw = date_to_week(start_raw) or today_week() or 1
+    ew = date_to_week(end_raw)   or sw
+    if ew < sw:
+        ew = sw
+    return sw, min(ew, TOTAL_WEEKS)
+
+
+def make_d_task(issue: dict, wbs_id: str) -> dict:
+    f      = issue["fields"]
+    comps  = [c["name"] for c in (f.get("components") or [])]
+    labels = f.get("labels") or []
+    sw, ew = _extract_dates(f)
     return {
-        "id":       f"{phase_idx}.{task_idx}",
-        "jiraKey":  issue["key"],
-        "jiraUrl":  f"{JIRA_URL}/browse/{issue['key']}",
-        "name":     sf.get("summary", "Unknown"),
-        "area":     detect_area(comps, labels, sf.get("summary", "")),
-        "status":   map_status(sf["status"]["name"]),
-        "assignee": (sf.get("assignee") or {}).get("displayName", ""),
-        "duedate":  sf.get("duedate") or "",
-        "priority": (sf.get("priority") or {}).get("name", "Medium"),
-        "labels":   labels[:5],
-        "subs":     subs,
+        "id":      wbs_id,
+        "jiraKey": issue["key"],
+        "jiraUrl": f"{JIRA_URL}/browse/{issue['key']}",
+        "n":       f.get("summary", "Unknown"),
+        "t":       "t",
+        "area":    detect_area(comps, labels, f.get("summary", "")),
+        "owner":   (f.get("assignee") or {}).get("displayName", ""),
+        "s":       sw,
+        "e":       ew,
+        "st":      map_status(f["status"]["name"]),
+        "priority":(f.get("priority") or {}).get("name", "Medium"),
     }
 
 
+def make_d_phase(phase_id: str, issue: dict, tasks: list) -> list[dict]:
+    """Phase 헤더 + Task 목록 → D 배열 항목들"""
+    f      = issue["fields"]
+    comps  = [c["name"] for c in (f.get("components") or [])]
+    labels = f.get("labels") or []
+    sw, ew = _extract_dates(f)
+    # 자식 범위로 phase 범위 보정
+    if tasks:
+        sw = min(t["s"] for t in tasks)
+        ew = max(t["e"] for t in tasks)
+    phase = {
+        "id":      phase_id,
+        "jiraKey": issue["key"],
+        "jiraUrl": f"{JIRA_URL}/browse/{issue['key']}",
+        "n":       f.get("summary", "Unknown"),
+        "t":       "p",
+        "area":    detect_area(comps, labels, f.get("summary", "")),
+        "owner":   (f.get("assignee") or {}).get("displayName", "PM팀"),
+        "s":       sw,
+        "e":       ew,
+        "st":      map_status(f["status"]["name"]),
+    }
+    return [phase] + tasks
+
+
 # ── JIRA Software (Epic 기반) ──────────────────────────────────────────────────
-def build_phases_software(client: JiraClient) -> list:
+def build_d_software(client: JiraClient) -> list:
     epics = client.search(
         f'project = "{PROJECT_KEY}" AND issuetype = Epic ORDER BY rank ASC, created ASC'
     )
-    print(f"  • 에픽(Phase): {len(epics)}개")
-
     all_issues = client.search(
         f'project = "{PROJECT_KEY}" AND issuetype not in (Epic, "Sub-task") '
         f'ORDER BY rank ASC, created ASC'
     )
-    print(f"  • 이슈: {len(all_issues)}개")
+    print(f"  • 에픽: {len(epics)}개  이슈: {len(all_issues)}개")
 
     epic_map: dict = {e["key"]: [] for e in epics}
     unassigned = []
-    for issue in all_issues:
-        f = issue["fields"]
-        epic_key = f.get("customfield_10014")
+    for iss in all_issues:
+        fld      = iss["fields"]
+        epic_key = fld.get("customfield_10014")
         if not epic_key:
-            parent = f.get("parent") or {}
+            parent = fld.get("parent") or {}
             if (parent.get("fields") or {}).get("issuetype", {}).get("name") == "Epic":
                 epic_key = parent.get("key")
-        (epic_map[epic_key] if epic_key in epic_map else unassigned).append(issue)
+        (epic_map.get(epic_key, unassigned) if epic_key in epic_map else unassigned).append(iss)
 
-    phases = []
+    D = []
     for i, epic in enumerate(epics):
-        ef    = epic["fields"]
-        tasks = [make_task(iss, i + 1, j + 1) for j, iss in enumerate(epic_map.get(epic["key"], []))]
-        phases.append(_phase_obj(f"P{i+1}", ef.get("summary", "Unknown Epic"),
-                                 epic["key"], ef["status"]["name"],
-                                 ef.get("duedate") or "", tasks))
+        pid   = f"P{i+1}"
+        tasks = [make_d_task(iss, f"{i+1}.{j+1}") for j, iss in enumerate(epic_map.get(epic["key"], []))]
+        D.extend(make_d_phase(pid, epic, tasks))
 
     if unassigned:
-        tasks = [make_task(iss, 0, j + 1) for j, iss in enumerate(unassigned)]
-        phases.insert(0, _phase_obj("P0", "미분류 이슈", "", "To Do", "", tasks))
+        # 미분류 이슈: 더미 phase로 감싸기
+        tasks = [make_d_task(iss, f"0.{j+1}") for j, iss in enumerate(unassigned)]
+        # 간단 phase 오브젝트
+        sw = min(t["s"] for t in tasks) if tasks else 1
+        ew = max(t["e"] for t in tasks) if tasks else 1
+        D.insert(0, {"id":"P0","jiraKey":"","jiraUrl":"","n":"미분류 이슈","t":"p","area":"PMO","owner":"","s":sw,"e":ew,"st":"todo"})
+        D[1:1] = tasks
+    return D
 
-    return phases
 
-
-# ── JIRA Work Management (Task 계층 기반) ─────────────────────────────────────
-def build_phases_workmanagement(client: JiraClient) -> list:
-    """
-    최상위 Task (parent 없음) → Phase
-    하위 Task / Subtask         → WBS 작업
-    """
-    all_issues = client.search(
-        f'project = "{PROJECT_KEY}" ORDER BY created ASC'
-    )
+# ── JIRA Work Management (Task 계층) ──────────────────────────────────────────
+def build_d_workmanagement(client: JiraClient) -> list:
+    all_issues = client.search(f'project = "{PROJECT_KEY}" ORDER BY created ASC')
     print(f"  • 전체 이슈: {len(all_issues)}개")
 
-    # key → issue 맵
     issue_map = {iss["key"]: iss for iss in all_issues}
+    top_level, children = [], {}
 
-    # 부모-자식 분류
-    top_level = []
-    children: dict = {}   # parent_key → [child_issue, ...]
-
-    for issue in all_issues:
-        f          = issue["fields"]
-        itype      = (f.get("issuetype") or {}).get("name", "").lower()
-        parent_obj = f.get("parent")
-
-        if parent_obj:
-            pk = parent_obj["key"]
-            children.setdefault(pk, []).append(issue)
-        else:
-            # subtask 타입이면 건너뜀 (부모 없는 subtask는 비정상)
-            if "sub" not in itype:
-                top_level.append(issue)
+    for iss in all_issues:
+        fld    = iss["fields"]
+        itype  = (fld.get("issuetype") or {}).get("name", "").lower()
+        parent = fld.get("parent")
+        if parent:
+            children.setdefault(parent["key"], []).append(iss)
+        elif "sub" not in itype:
+            top_level.append(iss)
 
     print(f"  • 최상위 Task(Phase): {len(top_level)}개")
 
-    phases = []
+    D = []
     for i, parent in enumerate(top_level):
-        pf       = parent["fields"]
-        kids     = children.get(parent["key"], [])
-        tasks    = [make_task(child, i + 1, j + 1) for j, child in enumerate(kids)]
-
-        # 자식이 없는 최상위 Task는 자기 자신을 작업으로도 등록
+        pid   = f"P{i+1}"
+        kids  = children.get(parent["key"], [])
+        tasks = [make_d_task(child, f"{i+1}.{j+1}") for j, child in enumerate(kids)]
         if not tasks:
-            tasks = [make_task(parent, i + 1, 1)]
+            tasks = [make_d_task(parent, f"{i+1}.1")]
+        D.extend(make_d_phase(pid, parent, tasks))
 
-        phases.append(_phase_obj(
-            f"P{i+1}",
-            pf.get("summary", "Unknown"),
-            parent["key"],
-            pf["status"]["name"],
-            pf.get("duedate") or "",
-            tasks,
-        ))
-
-    # 고아 이슈 (어느 최상위 Task의 자식도 아닌 것)
-    top_keys     = {p["key"] for p in top_level}
-    child_keys   = {iss["key"] for kids in children.values() for iss in kids}
-    orphan_keys  = set(issue_map) - top_keys - child_keys
-    orphans      = [issue_map[k] for k in orphan_keys]
-
+    # 고아 이슈
+    top_keys   = {p["key"] for p in top_level}
+    child_keys = {iss["key"] for kids in children.values() for iss in kids}
+    orphans    = [issue_map[k] for k in set(issue_map) - top_keys - child_keys]
     if orphans:
-        tasks = [make_task(iss, 0, j + 1) for j, iss in enumerate(orphans)]
-        phases.insert(0, _phase_obj("P0", "기타 이슈", "", "To Do", "", tasks))
-
-    return phases
-
-
-def _phase_obj(pid, name, jira_key, status_name, duedate, tasks) -> dict:
-    done_c = sum(1 for t in tasks if t["status"] == "done")
-    return {
-        "id":        pid,
-        "name":      name,
-        "jiraKey":   jira_key,
-        "jiraUrl":   f"{JIRA_URL}/browse/{jira_key}" if jira_key else "",
-        "status":    map_status(status_name),
-        "duedate":   duedate,
-        "tasks":     tasks,
-        "taskCount": len(tasks),
-        "doneCount": done_c,
-    }
+        tasks = [make_d_task(iss, f"0.{j+1}") for j, iss in enumerate(orphans)]
+        sw    = min(t["s"] for t in tasks)
+        ew    = max(t["e"] for t in tasks)
+        D.insert(0, {"id":"P0","jiraKey":"","jiraUrl":"","n":"기타 이슈","t":"p","area":"PMO","owner":"","s":sw,"e":ew,"st":"todo"})
+        D[1:1] = tasks
+    return D
 
 
-# ── 진입점: 프로젝트 유형 자동 감지 ──────────────────────────────────────────
-def build_phases(client: JiraClient) -> list:
+def build_d_array(client: JiraClient) -> list:
     ptype = client.project_type()
     print(f"  • 프로젝트 유형: {ptype}")
-
     if ptype == "software":
-        # JIRA Software: Epic 존재 여부로 2차 판단
-        epics = client.search(
-            f'project = "{PROJECT_KEY}" AND issuetype = Epic', max_results=1
-        )
+        epics = client.search(f'project = "{PROJECT_KEY}" AND issuetype = Epic', max_results=1)
         if epics:
-            return build_phases_software(client)
-
-    # JIRA Work Management 또는 Epic 없는 Software 프로젝트
-    return build_phases_workmanagement(client)
+            return build_d_software(client)
+    return build_d_workmanagement(client)
 
 
 # ── HTML 생성 ──────────────────────────────────────────────────────────────────
-def build_html(phases: list, ptype: str = "business") -> str:
+def build_html(D: list) -> str:
     pw_hash     = sha256_hex(WBS_PASSWORD)
     last_update = datetime.now().strftime("%Y-%m-%d %H:%M")
-    total       = sum(p["taskCount"] for p in phases)
-    done_total  = sum(p["doneCount"]  for p in phases)
-    doing_total = sum(1 for p in phases for t in p["tasks"] if t["status"] == "doing")
-    phases_json = json.dumps(phases, ensure_ascii=False)
-    pct         = round(done_total / total * 100) if total else 0
+    td_str      = today_str()
+    tw          = today_week()
+    ps_str      = PROJECT_START.strftime("%Y-%m-%d")
+    d_json      = json.dumps(D, ensure_ascii=False)
 
-    # JIRA 보드 링크 (프로젝트 유형별)
-    if ptype == "software":
-        board_url = f"{JIRA_URL}/jira/software/projects/{PROJECT_KEY}/boards"
-    else:
-        board_url = f"{JIRA_URL}/jira/core/projects/{PROJECT_KEY}/board"
+    tasks  = [r for r in D if r["t"] == "t"]
+    total  = len(tasks)
+    done   = sum(1 for t in tasks if t["st"] == "done")
+    doing  = sum(1 for t in tasks if t["st"] == "doing")
+    review = sum(1 for t in tasks if t["st"] == "review")
+    todo   = total - done - doing - review
+    pct    = round(done / total * 100) if total else 0
 
-    return f"""<!DOCTYPE html>
+    board_url = f"{JIRA_URL}/jira/core/projects/{PROJECT_KEY}/board" if JIRA_URL else "#"
+
+    # MONTHS 범위 계산 (PROJECT_START 기준)
+    months_json = _build_months_json(ps_str, TOTAL_WEEKS)
+
+    # HTML 템플릿 (%%PLACEHOLDER%% 치환 방식)
+    template = _html_template()
+    html = (template
+        .replace("%%WBS_TITLE%%",     WBS_TITLE)
+        .replace("%%PW_HASH%%",       pw_hash)
+        .replace("%%PROJECT_KEY%%",   PROJECT_KEY)
+        .replace("%%LAST_UPDATE%%",   last_update)
+        .replace("%%TODAY_STR%%",     td_str)
+        .replace("%%TODAY_W%%",       str(tw))
+        .replace("%%PROJECT_START%%", ps_str)
+        .replace("%%TOTAL_WEEKS%%",   str(TOTAL_WEEKS))
+        .replace("%%MONTHS_JSON%%",   months_json)
+        .replace("%%D_JSON%%",        d_json)
+        .replace("%%JIRA_URL%%",      JIRA_URL)
+        .replace("%%BOARD_URL%%",     board_url)
+        .replace("%%TOTAL%%",         str(total))
+        .replace("%%DONE%%",          str(done))
+        .replace("%%DOING%%",         str(doing))
+        .replace("%%REVIEW%%",        str(review))
+        .replace("%%TODO%%",          str(todo))
+        .replace("%%PCT%%",           str(pct))
+        .replace("%%PHASES%%",        str(sum(1 for r in D if r["t"] == "p")))
+        .replace("%%MILESTONES%%",    str(sum(1 for r in D if r["t"] == "m")))
+    )
+    return html
+
+
+def _build_months_json(ps_str: str, total_weeks: int) -> str:
+    """주차 범위 → 월별 그룹 JSON"""
+    ps = datetime.strptime(ps_str, "%Y-%m-%d")
+    months = {}
+    for w in range(1, total_weeks + 1):
+        d = ps + timedelta(weeks=w - 1)
+        key = (d.year, d.month)
+        if key not in months:
+            months[key] = {"n": f"{d.month}월", "s": w, "e": w}
+        else:
+            months[key]["e"] = w
+    return json.dumps(list(months.values()), ensure_ascii=False)
+
+
+# ── HTML 템플릿 ───────────────────────────────────────────────────────────────
+def _html_template() -> str:
+    return r"""<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>{WBS_TITLE}</title>
+<title>%%WBS_TITLE%%</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
-*{{box-sizing:border-box;margin:0;padding:0}}
-body{{font-family:'Segoe UI',system-ui,sans-serif;background:#0f172a;color:#e2e8f0;font-size:13px}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f4f8;color:#1e293b;font-size:13px}
 
-/* ─ Overlay ─ */
-#overlay{{position:fixed;inset:0;background:#0a0f1e;display:flex;align-items:center;justify-content:center;z-index:9999}}
-.gate{{background:#1e293b;border:1px solid #334155;border-radius:1rem;padding:2.5rem 3rem;width:360px;text-align:center;box-shadow:0 25px 50px rgba(0,0,0,.6)}}
-.gate h2{{font-size:1.2rem;color:#38bdf8;margin-bottom:.4rem}}
-.gate p{{font-size:.78rem;color:#475569;margin-bottom:1.5rem}}
-.gate input{{width:100%;padding:.7rem 1rem;background:#0f172a;border:1px solid #334155;border-radius:.5rem;color:#e2e8f0;font-size:.9rem;outline:none;margin-bottom:.85rem;transition:border .15s}}
-.gate input:focus{{border-color:#38bdf8;box-shadow:0 0 0 3px rgba(56,189,248,.1)}}
-.gate button{{width:100%;padding:.72rem;background:#1d4ed8;color:#fff;border:none;border-radius:.5rem;font-size:.9rem;cursor:pointer;font-weight:600;transition:background .15s}}
-.gate button:hover{{background:#2563eb}}
-.gate .err{{font-size:.72rem;color:#f87171;margin-top:.6rem;min-height:1.1rem}}
-.gate .lock{{font-size:2.2rem;margin-bottom:.85rem}}
-.gate .hint{{font-size:.65rem;color:#1e3a5f;margin-top:.5rem}}
+/* ── 비밀번호 게이트 ── */
+#gate{position:fixed;inset:0;background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 50%,#1e1b4b 100%);display:flex;align-items:center;justify-content:center;z-index:9999}
+.gb{background:#fff;border-radius:20px;padding:3rem 3.5rem;width:420px;text-align:center;box-shadow:0 40px 80px rgba(0,0,0,.5)}
+.gb-logo{display:flex;align-items:center;justify-content:center;gap:.5rem;margin-bottom:1.5rem}
+.gb-logo-icon{width:44px;height:44px;background:linear-gradient(135deg,#2563eb,#7c3aed);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.4rem}
+.gb-logo-text{font-size:1.1rem;font-weight:800;color:#1e293b}
+.gb-logo-sub{font-size:.65rem;color:#94a3b8;font-weight:500}
+.gb-title{font-size:1rem;font-weight:700;margin-bottom:.3rem;color:#1e293b}
+.gb-sub{font-size:.78rem;color:#94a3b8;margin-bottom:1.6rem}
+.gb input{width:100%;padding:.82rem 1rem;border:2px solid #e2e8f0;border-radius:.6rem;font-size:.95rem;outline:none;transition:all .2s;margin-bottom:.9rem;color:#1e293b;background:#f8fafc}
+.gb input:focus{border-color:#2563eb;box-shadow:0 0 0 4px rgba(37,99,235,.1);background:#fff}
+.gb button{width:100%;padding:.82rem;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border:none;border-radius:.6rem;font-size:.95rem;font-weight:700;cursor:pointer;transition:all .2s}
+.gb button:hover{opacity:.92;transform:translateY(-1px);box-shadow:0 6px 20px rgba(37,99,235,.35)}
+.gb-err{font-size:.74rem;color:#ef4444;margin-top:.7rem;min-height:1.1rem}
+.gb-footer{font-size:.65rem;color:#94a3b8;margin-top:1rem;display:flex;align-items:center;justify-content:center;gap:.3rem}
 
-/* ─ Layout ─ */
-#main{{display:none}}
-header{{background:#1e293b;border-bottom:1px solid #334155;padding:.8rem 1.5rem;display:flex;align-items:center;gap:.55rem;flex-wrap:wrap}}
-header h1{{font-size:1.1rem;font-weight:700;color:#38bdf8;flex:1;min-width:0}}
-.badge{{font-size:.63rem;padding:.13rem .5rem;border-radius:9999px;border:1px solid;white-space:nowrap}}
-.b-blue{{background:#1e3a5f;color:#38bdf8;border-color:#1d4ed8}}
-.b-green{{background:#052e16;color:#4ade80;border-color:#166534}}
-.b-amber{{background:#2d1a00;color:#fbbf24;border-color:#92400e}}
-.sync-info{{font-size:.63rem;color:#475569;display:flex;align-items:center;gap:.35rem}}
-.dot{{width:6px;height:6px;border-radius:50%;background:#4ade80;animation:pulse 2s infinite;flex-shrink:0}}
-@keyframes pulse{{0%,100%{{opacity:1}}50%{{opacity:.3}}}}
-.jira-link{{display:inline-flex;align-items:center;gap:.3rem;color:#94a3b8;font-size:.68rem;text-decoration:none;border:1px solid #334155;padding:.2rem .5rem;border-radius:.3rem;transition:all .15s;white-space:nowrap}}
-.jira-link:hover{{color:#38bdf8;border-color:#38bdf8}}
-.jira-logo{{fill:currentColor}}
+/* ── 메인 레이아웃 ── */
+#main{display:none}
+.app-hdr{background:linear-gradient(135deg,#1e293b,#1e3a5f);color:#fff;padding:.75rem 1.4rem;display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;position:sticky;top:0;z-index:200;box-shadow:0 4px 16px rgba(0,0,0,.35)}
+.app-hdr h1{font-size:1rem;font-weight:800;flex:1;min-width:0}
+.hbadge{font-size:.62rem;padding:.18rem .55rem;border-radius:99px;font-weight:700;white-space:nowrap}
+.hb-b{background:rgba(37,99,235,.35);color:#93c5fd;border:1px solid rgba(37,99,235,.4)}
+.hb-g{background:rgba(22,163,74,.3);color:#86efac;border:1px solid rgba(22,163,74,.4)}
+.hb-a{background:rgba(245,158,11,.25);color:#fde68a;border:1px solid rgba(245,158,11,.4)}
+.sync{font-size:.66rem;color:#94a3b8;display:flex;align-items:center;gap:.28rem;margin-left:auto;white-space:nowrap}
+.sdot{width:7px;height:7px;border-radius:50%;background:#4ade80;animation:blink 2s infinite;flex-shrink:0}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+.jira-btn{display:inline-flex;align-items:center;gap:.28rem;color:#94a3b8;font-size:.66rem;text-decoration:none;border:1px solid #334155;padding:.22rem .5rem;border-radius:.3rem;transition:all .15s;white-space:nowrap;background:rgba(255,255,255,.05)}
+.jira-btn:hover{color:#38bdf8;border-color:#38bdf8}
 
-/* ─ Stats ─ */
-.stats{{display:grid;grid-template-columns:repeat(5,1fr);gap:.55rem;padding:.75rem 1.5rem}}
-@media(max-width:640px){{.stats{{grid-template-columns:repeat(3,1fr)}}}}
-.sc{{background:#1e293b;border:1px solid #334155;border-radius:.45rem;padding:.55rem .75rem}}
-.sc-l{{font-size:.58rem;color:#475569;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.2rem}}
-.sc-v{{font-size:1.1rem;font-weight:700;color:#38bdf8}}
+/* ── 전체 진척률 배너 ── */
+.prog-banner{background:linear-gradient(135deg,#1e293b,#1e3a5f,#1e1b4b);color:#fff;padding:.9rem 1.4rem;display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap}
+.pb-pct{font-size:2.6rem;font-weight:900;color:#38bdf8;line-height:1;min-width:5rem;letter-spacing:-.04em}
+.pb-info{flex:1;display:flex;flex-direction:column;gap:.25rem}
+.pb-label{font-size:.62rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+.pb-bar{height:10px;background:rgba(255,255,255,.08);border-radius:5px;overflow:hidden;margin:.25rem 0}
+.pb-fill{height:100%;background:linear-gradient(90deg,#22c55e,#38bdf8,#6366f1);border-radius:5px;transition:width .8s cubic-bezier(.4,0,.2,1)}
+.pb-detail{font-size:.63rem;color:#64748b;display:flex;gap:.8rem;flex-wrap:wrap}
+.pb-stat{display:flex;align-items:center;gap:.25rem}
+.pbs-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 
-/* ─ Progress bar ─ */
-.progress-bar-wrap{{padding:.5rem 1.5rem .1rem;display:flex;align-items:center;gap:.75rem}}
-.pbar-full{{flex:1;height:6px;background:#1e293b;border-radius:3px;overflow:hidden}}
-.pfill-full{{height:100%;background:linear-gradient(90deg,#166534,#22c55e,#38bdf8);border-radius:3px;transition:width .5s}}
-.pbar-label{{font-size:.7rem;color:#64748b;white-space:nowrap}}
+/* ── 6 영역 진척 카드 ── */
+.area-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:.6rem;padding:.75rem 1.4rem;background:#fff;border-bottom:2px solid #e2e8f0}
+@media(max-width:900px){.area-cards{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:500px){.area-cards{grid-template-columns:repeat(2,1fr)}}
+.ac{border-radius:12px;padding:.7rem .85rem;cursor:pointer;transition:all .2s;border:2px solid transparent}
+.ac:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.12)}
+.ac.active{border-width:2px}
+.ac-label{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;opacity:.75;margin-bottom:.3rem}
+.ac-pct{font-size:1.5rem;font-weight:900;line-height:1;margin-bottom:.3rem}
+.ac-counts{font-size:.59rem;opacity:.65;margin-bottom:.4rem}
+.ac-bar{height:5px;background:rgba(0,0,0,.08);border-radius:3px;overflow:hidden}
+.ac-fill{height:100%;border-radius:3px;transition:width .8s ease}
 
-/* ─ Toolbar ─ */
-.toolbar{{background:#1a2332;border-bottom:1px solid #334155;padding:.45rem 1.5rem;display:flex;gap:.38rem;flex-wrap:wrap;align-items:center}}
-.tb{{background:#0f172a;color:#94a3b8;border:1px solid #334155;border-radius:.25rem;padding:.22rem .5rem;font-size:.68rem;cursor:pointer;transition:all .15s}}
-.tb:hover,.tb.on{{color:#38bdf8;border-color:#38bdf8;background:#1e3a5f}}
-.sep{{width:1px;height:13px;background:#334155;margin:0 .1rem}}
+/* ── 통계 스트립 ── */
+.stats{display:grid;grid-template-columns:repeat(7,1fr);background:#f8fafc;border-bottom:2px solid #e2e8f0}
+@media(max-width:700px){.stats{grid-template-columns:repeat(4,1fr)}}
+.stat{text-align:center;padding:.55rem .4rem;border-right:1px solid #e2e8f0}
+.stat:last-child{border:none}
+.stat-v{font-size:1.3rem;font-weight:800;line-height:1}
+.stat-l{font-size:.54rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-top:.15rem}
 
-/* ─ Phase blocks ─ */
-.wbs{{padding:.75rem 1.5rem 2.5rem}}
-.ph{{background:#1e293b;border:1px solid #334155;border-radius:.55rem;margin-bottom:.65rem;overflow:hidden}}
-.ph-hdr{{display:flex;align-items:center;gap:.55rem;padding:.65rem .9rem;cursor:pointer;user-select:none;transition:background .15s}}
-.ph-hdr:hover{{background:#263347}}
-.chv{{font-size:.6rem;color:#64748b;transition:transform .2s;width:11px;flex-shrink:0}}
-.chv.o{{transform:rotate(90deg)}}
-.ph-id{{font-size:.63rem;font-weight:700;padding:.1rem .38rem;border-radius:.2rem;min-width:2rem;text-align:center;flex-shrink:0}}
-.ph-name{{font-weight:600;font-size:.83rem;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
-.ph-meta{{display:flex;align-items:center;gap:.4rem;flex-shrink:0}}
-.mbar{{width:44px;height:3px;background:#0f172a;border-radius:2px;overflow:hidden}}
-.mfill{{height:100%;border-radius:2px}}
+/* ── 툴바 ── */
+.toolbar{padding:.45rem 1.4rem;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:.3rem;flex-wrap:wrap}
+.tbtn{padding:.26rem .6rem;border:1.5px solid #e2e8f0;border-radius:.3rem;font-size:.69rem;font-weight:600;cursor:pointer;background:#fff;color:#64748b;transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:.22rem}
+.tbtn:hover{border-color:#2563eb;color:#2563eb;background:#eff6ff}
+.tbtn.on{background:#2563eb;border-color:#2563eb;color:#fff}
+.tbtn.excel{border-color:#166534;color:#166534;font-weight:700}
+.tbtn.excel:hover{background:#f0fdf4}
+.tbtn.accent{border-color:#0ea5e9;color:#0284c7}
+.tbtn.accent:hover{background:#f0f9ff}
+.tsep{width:1px;height:18px;background:#e2e8f0;margin:0 .1rem;flex-shrink:0}
+.tb-grp{font-size:.6rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+.legend{display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;margin-left:auto}
+.leg{display:flex;align-items:center;gap:.22rem;font-size:.61rem;color:#64748b}
+.leg-sq{width:12px;height:8px;border-radius:2px;flex-shrink:0}
 
-/* ─ Task rows ─ */
-.rows{{border-top:1px solid #1a2332}}
-.tr{{display:flex;align-items:flex-start;gap:.45rem;padding:.38rem .65rem;margin:.07rem .25rem;border-radius:.3rem;transition:background .1s}}
-.tr:hover{{background:#1a2540}}
-.status-dot{{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:.38rem}}
-.s-done  {{background:#22c55e}}
-.s-doing {{background:#38bdf8;animation:pulse 1.8s infinite}}
-.s-review{{background:#fbbf24}}
-.s-todo  {{background:#334155}}
-.tbody{{flex:1;min-width:0}}
-.tr1{{display:flex;align-items:center;gap:.38rem;flex-wrap:wrap}}
-.tid{{color:#334155;font-size:.6rem;font-family:monospace;flex-shrink:0;min-width:2.8rem}}
-.tkey{{font-size:.63rem;font-family:monospace;color:#475569;text-decoration:none;flex-shrink:0;transition:color .15s}}
-.tkey:hover{{color:#38bdf8;text-decoration:underline}}
-.tname{{font-size:.78rem;color:#cbd5e1;flex:1;min-width:0}}
-.tname.done{{text-decoration:line-through;color:#475569}}
-.area-tag{{font-size:.57rem;padding:.06rem .3rem;border-radius:.2rem;font-weight:600;flex-shrink:0;border:1px solid;white-space:nowrap}}
-.stag{{font-size:.57rem;padding:.06rem .3rem;border-radius:.2rem;font-weight:600;flex-shrink:0;white-space:nowrap}}
-.stag-done  {{background:#052e16;color:#4ade80}}
-.stag-doing {{background:#1e3a5f;color:#38bdf8}}
-.stag-review{{background:#2d1a00;color:#fbbf24}}
-.stag-todo  {{background:#1a1a2e;color:#475569}}
-.tassign{{font-size:.6rem;color:#334155;flex-shrink:0}}
-.tdate  {{font-size:.6rem;color:#334155;flex-shrink:0;margin-left:auto}}
-.subs{{margin:.18rem 0 .05rem 1rem;border-left:1px dashed #1e293b;padding-left:.55rem}}
-.sub{{display:flex;align-items:center;gap:.3rem;padding:.13rem .1rem;font-size:.68rem;color:#475569}}
-.sdot{{width:4px;height:4px;border-radius:50%;background:#334155;flex-shrink:0}}
-.sdot.done{{background:#22c55e}}.sdot.doing{{background:#38bdf8}}
-.sub a{{color:#475569;font-size:.6rem;font-family:monospace;text-decoration:none}}
-.sub a:hover{{color:#38bdf8}}
-.empty-msg{{color:#334155;text-align:center;padding:2rem;font-size:.8rem}}
+/* ── 날짜 이동 ── */
+.date-nav{padding:.35rem 1.4rem;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;font-size:.7rem;color:#475569}
+.week-jump select,.week-jump label{font-size:.68rem}
+.week-jump{display:flex;align-items:center;gap:.3rem}
+.week-jump select{padding:.2rem .5rem;border:1.5px solid #e2e8f0;border-radius:.28rem;background:#fff;color:#1e293b;cursor:pointer}
 
-/* ─ Area colors ─ */
-.a-이지원{{background:#1a2d4a;color:#60a5fa;border-color:#1e3a5f}}
-.a-사이버{{background:#2d1a2d;color:#c084fc;border-color:#4c1d95}}
-.a-콜센터{{background:#1a2d2d;color:#34d399;border-color:#065f46}}
-.a-인프라{{background:#2d2a1a;color:#fbbf24;border-color:#92400e}}
-.a-PMO  {{background:#1a1a2d;color:#94a3b8;border-color:#334155}}
+/* ── 간트 테이블 ── */
+.gantt-scroll{overflow:auto;background:#fff}
+.gtbl{border-collapse:collapse;table-layout:fixed;white-space:nowrap}
+.gtbl thead th{border:1px solid #e2e8f0;font-weight:600;user-select:none}
+.th-id{position:sticky;left:0;z-index:15;background:#1e293b;color:#94a3b8;font-size:.59rem;padding:.4rem .4rem;width:62px;min-width:62px;border-color:#334155!important;text-align:left}
+.th-nm{position:sticky;left:62px;z-index:15;background:#1e293b;color:#94a3b8;font-size:.59rem;padding:.4rem .65rem;width:230px;min-width:230px;border-color:#334155!important;text-align:left}
+.th-ow{position:sticky;left:292px;z-index:15;background:#1e293b;color:#94a3b8;font-size:.59rem;padding:.4rem .4rem;width:82px;min-width:82px;border-color:#334155!important;text-align:center}
+.th-mo{background:#334155;color:#e2e8f0;font-size:.7rem;padding:.36rem .35rem;text-align:center;border-color:#475569!important}
+.th-w{background:#f8fafc;color:#94a3b8;font-size:.55rem;padding:.26rem 0;text-align:center;width:28px;min-width:28px;max-width:28px;border-color:#e2e8f0!important}
+.th-w-now{background:#fef3c7!important;color:#92400e!important;font-weight:700}
+.th-w-past{background:#f9fafb!important;color:#cbd5e1!important}
+
+.td-id{position:sticky;left:0;z-index:10;background:#fff;border:1px solid #f1f5f9;border-right:1px solid #e2e8f0;padding:.2rem .4rem;font-size:.6rem;font-family:Consolas,monospace;color:#94a3b8;width:62px;min-width:62px;vertical-align:middle}
+.td-nm{position:sticky;left:62px;z-index:10;background:#fff;border:1px solid #f1f5f9;border-right:1px solid #e2e8f0;padding:.18rem .55rem;width:230px;min-width:230px;max-width:230px;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
+.td-ow{position:sticky;left:292px;z-index:10;background:#fff;border:1px solid #f1f5f9;border-right:2px solid #d1d5db;padding:.15rem .35rem;width:82px;min-width:82px;max-width:82px;vertical-align:middle;text-align:center}
+.td-w{border:1px solid #f1f5f9;width:28px;min-width:28px;max-width:28px;padding:0;vertical-align:middle;height:32px}
+.td-w.col-now{background:#fefce8}
+.td-w.col-past{background:#fafafa}
+
+tr.r-phase .td-id,.tr.r-phase .td-nm,.tr.r-phase .td-ow{background:#f1f5f9}
+tr.r-phase .td-w{background:#f5f5f5}
+tr.r-ms .td-id,tr.r-ms .td-nm,tr.r-ms .td-ow{background:#fffbeb}
+.gtbl tbody tr:hover .td-id,.gtbl tbody tr:hover .td-nm,.gtbl tbody tr:hover .td-ow{background:#eff6ff!important}
+
+/* 간트 바 */
+.bar{height:12px;margin:10px 0;border-radius:0}
+.bar-s{border-radius:4px 0 0 4px;margin-left:2px}
+.bar-e{border-radius:0 4px 4px 0;margin-right:2px}
+.bar-se{border-radius:4px;margin:10px 3px}
+.bph{height:5px;margin:13.5px 0;opacity:.25;border-radius:0}
+.bph.bar-s{border-radius:2px 0 0 2px;margin-left:1px}
+.bph.bar-e{border-radius:0 2px 2px 0;margin-right:1px}
+.bph.bar-se{border-radius:2px;margin:13.5px 1px}
+.bar-done{opacity:.4;background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.25) 0,rgba(255,255,255,.25) 3px,transparent 3px,transparent 7px)}
+.ms-cell{text-align:center;line-height:32px;font-size:14px;color:#dc2626;font-weight:900}
+
+/* 상태 배지 */
+.sbadge{font-size:.5rem;padding:.04rem .26rem;border-radius:99px;font-weight:700;margin-left:.25rem;vertical-align:middle;white-space:nowrap}
+.sb-done{background:#dcfce7;color:#166534}.sb-doing{background:#dbeafe;color:#1d4ed8}
+.sb-review{background:#fef3c7;color:#92400e}.sb-todo{background:#f1f5f9;color:#94a3b8}
+
+/* 담당자 칩 */
+.owner-chip{display:inline-flex;align-items:center;font-size:.57rem;padding:.1rem .32rem;border-radius:99px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:78px}
+
+/* JIRA 키 링크 */
+.jkey{font-size:.55rem;font-family:Consolas,monospace;color:#94a3b8;text-decoration:none;transition:color .15s}
+.jkey:hover{color:#2563eb}
+
+.rl{display:flex;align-items:center;gap:.25rem;min-width:0}
+.rpip{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.rtxt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.chv{font-size:.55rem;cursor:pointer;user-select:none;transition:transform .2s;color:#94a3b8;flex-shrink:0}
+.chv.o{transform:rotate(90deg)}
+.hidden{display:none!important}
 </style>
 </head>
 <body>
 
-<!-- ═══ 비밀번호 오버레이 ═══ -->
-<div id="overlay">
-  <div class="gate">
-    <div class="lock">🔒</div>
-    <h2>{WBS_TITLE}</h2>
-    <p>접근하려면 비밀번호를 입력하세요</p>
-    <input type="password" id="pw" placeholder="비밀번호 입력"
-           onkeydown="if(event.key==='Enter')doAuth()"/>
-    <button onclick="doAuth()">확인</button>
-    <div class="err" id="err"></div>
-    <div class="hint">JIRA 데이터 자동 동기화 · 최종: {last_update}</div>
+<!-- ══ 비밀번호 게이트 ══ -->
+<div id="gate">
+  <div class="gb">
+    <div class="gb-logo">
+      <div class="gb-logo-icon">📋</div>
+      <div>
+        <div class="gb-logo-text">%%PROJECT_KEY%%</div>
+        <div class="gb-logo-sub">프로젝트 WBS 관리 시스템</div>
+      </div>
+    </div>
+    <div class="gb-title">보안 로그인</div>
+    <div class="gb-sub">이 페이지는 프로젝트 팀원 전용입니다</div>
+    <input type="password" id="pw" placeholder="비밀번호 입력" onkeydown="if(event.key==='Enter')auth()"/>
+    <button onclick="auth()">입장하기 →</button>
+    <div class="gb-err" id="gerr"></div>
+    <div class="gb-footer">🔄 JIRA 자동 동기화 · 최종: %%LAST_UPDATE%%</div>
   </div>
 </div>
 
-<!-- ═══ 메인 콘텐츠 ═══ -->
+<!-- ══ 메인 ══ -->
 <div id="main">
-<header>
-  <h1>📋 {WBS_TITLE}</h1>
-  <span class="badge b-blue">{PROJECT_KEY}</span>
-  <span class="badge b-green">● {done_total}/{total} 완료</span>
-  <span class="badge b-amber">{pct}%</span>
-  <span class="sync-info"><span class="dot"></span>동기화: {last_update}</span>
-  <a class="jira-link" href="{board_url}" target="_blank">
-    <svg class="jira-logo" width="11" height="11" viewBox="0 0 24 24">
-      <path d="M11.571 11.513H0a5.218 5.218 0 0 0 5.232 5.215h2.13v2.058A5.215 5.215 0 0 0 12.575 24V12.518a1.005 1.005 0 0 0-1.004-1.005zm5.723-5.756H5.757a5.215 5.215 0 0 0 5.214 5.214h2.129v2.058a5.218 5.218 0 0 0 5.215 5.214V6.762a1.005 1.005 0 0 0-1.021-1.005zM23.013 0H11.442a5.215 5.215 0 0 0 5.215 5.215h2.129v2.058A5.215 5.215 0 0 0 24 12.487V1.005A1.005 1.005 0 0 0 23.013 0z"/>
-    </svg>
-    JIRA 보드
-  </a>
+
+<header class="app-hdr">
+  <h1>📋 %%WBS_TITLE%%</h1>
+  <span class="hbadge hb-b">JIRA · %%PROJECT_KEY%%</span>
+  <span class="hbadge hb-g" id="h-done">%%DONE%%/%%TOTAL%% 완료</span>
+  <span class="hbadge hb-a" id="h-pct">%%PCT%%%</span>
+  <a class="jira-btn" href="%%BOARD_URL%%" target="_blank">↗ JIRA 보드</a>
+  <div class="sync"><span class="sdot"></span>%%LAST_UPDATE%% 동기화</div>
 </header>
 
+<!-- 전체 진척률 배너 -->
+<div class="prog-banner">
+  <div class="pb-pct" id="pb-pct">%%PCT%%%</div>
+  <div class="pb-info">
+    <div class="pb-label">전체 진척률 (JIRA Task 기준)</div>
+    <div class="pb-bar"><div class="pb-fill" id="pb-fill" style="width:%%PCT%%%"></div></div>
+    <div class="pb-detail" id="pb-detail">
+      <span class="pb-stat"><span class="pbs-dot" style="background:#22c55e"></span>완료 %%DONE%%</span>
+      <span class="pb-stat"><span class="pbs-dot" style="background:#38bdf8"></span>진행 %%DOING%%</span>
+      <span class="pb-stat"><span class="pbs-dot" style="background:#fbbf24"></span>검토 %%REVIEW%%</span>
+      <span class="pb-stat"><span class="pbs-dot" style="background:#e2e8f0"></span>대기 %%TODO%%</span>
+    </div>
+  </div>
+</div>
+
+<!-- 6 영역 진척 카드 -->
+<div class="area-cards" id="area-cards"></div>
+
+<!-- 통계 스트립 -->
 <div class="stats">
-  <div class="sc"><div class="sc-l">전체 이슈</div><div class="sc-v">{total}</div></div>
-  <div class="sc"><div class="sc-l">완료</div><div class="sc-v" style="color:#4ade80">{done_total}</div></div>
-  <div class="sc"><div class="sc-l">진행중</div><div class="sc-v" style="color:#38bdf8">{doing_total}</div></div>
-  <div class="sc"><div class="sc-l">Phase 수</div><div class="sc-v" style="color:#c084fc">{len(phases)}</div></div>
-  <div class="sc"><div class="sc-l">달성률</div><div class="sc-v" style="color:#fbbf24">{pct}%</div></div>
+  <div class="stat"><div class="stat-v" id="s-t" style="color:#2563eb">%%TOTAL%%</div><div class="stat-l">전체 Task</div></div>
+  <div class="stat"><div class="stat-v" id="s-d" style="color:#16a34a">%%DONE%%</div><div class="stat-l">완료</div></div>
+  <div class="stat"><div class="stat-v" id="s-g" style="color:#2563eb">%%DOING%%</div><div class="stat-l">진행중</div></div>
+  <div class="stat"><div class="stat-v" id="s-r" style="color:#d97706">%%REVIEW%%</div><div class="stat-l">검토중</div></div>
+  <div class="stat"><div class="stat-v" id="s-n" style="color:#94a3b8">%%TODO%%</div><div class="stat-l">대기</div></div>
+  <div class="stat"><div class="stat-v" style="color:#dc2626">%%MILESTONES%%</div><div class="stat-l">마일스톤</div></div>
+  <div class="stat"><div class="stat-v" style="color:#7c3aed">%%TOTAL_WEEKS%%주</div><div class="stat-l">전체 기간</div></div>
 </div>
 
-<div class="progress-bar-wrap">
-  <div class="pbar-full"><div class="pfill-full" style="width:{pct}%"></div></div>
-  <span class="pbar-label">{done_total} / {total} tasks · {pct}%</span>
-</div>
-
+<!-- 툴바 -->
 <div class="toolbar">
-  <button class="tb on" id="f-all"    onclick="setF('all',this)">전체</button>
-  <button class="tb"    id="f-todo"   onclick="setF('todo',this)">대기</button>
-  <button class="tb"    id="f-doing"  onclick="setF('doing',this)">진행중</button>
-  <button class="tb"    id="f-review" onclick="setF('review',this)">검토중</button>
-  <button class="tb"    id="f-done"   onclick="setF('done',this)">완료</button>
-  <div class="sep"></div>
-  <button class="tb" onclick="expAll()">전체 펼치기</button>
-  <button class="tb" onclick="colAll()">전체 접기</button>
+  <span class="tb-grp">상태</span>
+  <button class="tbtn on" id="f-all"    onclick="setF('all',this)">전체</button>
+  <button class="tbtn"    id="f-todo"   onclick="setF('todo',this)">대기</button>
+  <button class="tbtn"    id="f-doing"  onclick="setF('doing',this)">진행중</button>
+  <button class="tbtn"    id="f-review" onclick="setF('review',this)">검토중</button>
+  <button class="tbtn"    id="f-done"   onclick="setF('done',this)">완료</button>
+  <div class="tsep"></div>
+  <span class="tb-grp">영역</span>
+  <button class="tbtn on" id="fa-all"    onclick="setA('all',this)">전체</button>
+  <button class="tbtn"    id="fa-이지원" onclick="setA('이지원',this)">이지원</button>
+  <button class="tbtn"    id="fa-사이버" onclick="setA('사이버',this)">사이버</button>
+  <button class="tbtn"    id="fa-콜센터" onclick="setA('콜센터',this)">콜센터</button>
+  <button class="tbtn"    id="fa-인프라" onclick="setA('인프라',this)">인프라</button>
+  <button class="tbtn"    id="fa-PMO"   onclick="setA('PMO',this)">PMO</button>
+  <div class="tsep"></div>
+  <button class="tbtn" onclick="expAll()">전체 펼치기</button>
+  <button class="tbtn" onclick="colAll()">전체 접기</button>
+  <div class="tsep"></div>
+  <button class="tbtn accent" onclick="goToday()">📅 이번 주</button>
+  <button class="tbtn excel" onclick="exportExcel()">📊 Excel</button>
+  <div class="legend">
+    <div class="leg"><div class="leg-sq" style="background:#3b82f6"></div>이지원</div>
+    <div class="leg"><div class="leg-sq" style="background:#7c3aed"></div>사이버</div>
+    <div class="leg"><div class="leg-sq" style="background:#10b981"></div>콜센터</div>
+    <div class="leg"><div class="leg-sq" style="background:#f59e0b"></div>인프라</div>
+    <div class="leg"><div class="leg-sq" style="background:#64748b"></div>PMO</div>
+    <div class="leg"><span style="color:#dc2626;font-size:11px">◆</span>마일스톤</div>
+  </div>
 </div>
 
-<div class="wbs" id="wbs"></div>
+<!-- 날짜 이동 -->
+<div class="date-nav">
+  📅 프로젝트: <strong id="date-range-label"></strong>
+  <div class="tsep"></div>
+  <div class="week-jump">
+    <label>주차 이동:</label>
+    <select id="weekSel" onchange="jumpToWeek(this.value)"></select>
+  </div>
+  <div class="tsep"></div>
+  기간 필터:
+  <select id="wfrom" onchange="render()" style="padding:.2rem .5rem;border:1.5px solid #e2e8f0;border-radius:.28rem;font-size:.68rem;background:#fff;color:#1e293b;cursor:pointer"></select>
+  ~
+  <select id="wto"   onchange="render()" style="padding:.2rem .5rem;border:1.5px solid #e2e8f0;border-radius:.28rem;font-size:.68rem;background:#fff;color:#1e293b;cursor:pointer"></select>
+  <button class="tbtn" onclick="resetWRange()" style="padding:.15rem .4rem;font-size:.62rem">전체보기</button>
+  <div class="tsep"></div>
+  <span id="today-info" style="color:#059669;font-weight:600"></span>
 </div>
+
+<!-- 간트 -->
+<div class="gantt-scroll" id="gscroll">
+  <table class="gtbl" id="gtbl"></table>
+</div>
+
+</div><!-- /main -->
 
 <script>
-const PW_HASH   = "{pw_hash}";
-const PHASES    = {phases_json};
-const JIRA_BASE = "{JIRA_URL}";
-const AREA_CLS  = {{'이지원':'a-이지원','사이버':'a-사이버','콜센터':'a-콜센터','인프라':'a-인프라','PMO':'a-PMO'}};
-const SL = {{done:'완료',doing:'진행중',review:'검토중',todo:'대기'}};
-const SC = {{done:'stag-done',doing:'stag-doing',review:'stag-review',todo:'stag-todo'}};
+// ═══ 상수 ════════════════════════════════════════════════════
+const HASH          = "%%PW_HASH%%";
+const TW            = %%TOTAL_WEEKS%%;
+const PROJECT_START = new Date('%%PROJECT_START%%');
+const TODAY         = new Date('%%TODAY_STR%%');
+const TODAY_W_INIT  = %%TODAY_W%%;
+const JIRA_BASE     = "%%JIRA_URL%%";
+const MONTHS        = %%MONTHS_JSON%%;
+const D             = %%D_JSON%%;
 
-// ─ Auth ─────────────────────────────────────────────────────
-async function sha256(msg) {{
-  const buf  = new TextEncoder().encode(msg);
-  const hash = await crypto.subtle.digest('SHA-256', buf);
-  return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');
-}}
-async function doAuth() {{
-  const v = document.getElementById('pw').value;
-  if (!v) {{ showErr('비밀번호를 입력해주세요'); return; }}
-  const h = await sha256(v);
-  if (h === PW_HASH) {{
-    sessionStorage.setItem('wbs_ok','1');
-    document.getElementById('overlay').style.display = 'none';
-    document.getElementById('main').style.display    = 'block';
-  }} else {{
-    showErr('비밀번호가 올바르지 않습니다');
-    document.getElementById('pw').value = '';
-    document.getElementById('pw').focus();
-  }}
-}}
-function showErr(m) {{
-  const el = document.getElementById('err');
-  el.textContent = m;
-  setTimeout(()=>el.textContent='', 2500);
-}}
-if (sessionStorage.getItem('wbs_ok')==='1') {{
-  document.getElementById('overlay').style.display = 'none';
-  document.getElementById('main').style.display    = 'block';
-}}
-document.getElementById('pw').focus();
+// ═══ 인증 ════════════════════════════════════════════════════
+async function sha256(s){
+  const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));
+  return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+async function auth(){
+  const v=document.getElementById('pw').value;
+  if(!v){setErr('비밀번호를 입력해주세요');return;}
+  if(await sha256(v)===HASH){sessionStorage.setItem('wbs','1');open_main();}
+  else{setErr('비밀번호가 올바르지 않습니다');document.getElementById('pw').value='';document.getElementById('pw').focus();}
+}
+function setErr(m){const e=document.getElementById('gerr');e.textContent=m;setTimeout(()=>e.textContent='',2500)}
+function open_main(){
+  document.getElementById('gate').style.display='none';
+  document.getElementById('main').style.display='block';
+  init();
+}
+if(sessionStorage.getItem('wbs')==='1') open_main();
+else document.getElementById('pw').focus();
 
-// ─ Render ────────────────────────────────────────────────────
-let curF = 'all';
-const open = {{}};
-PHASES.forEach(p => open[p.id] = true);
+// ═══ 유틸 ════════════════════════════════════════════════════
+function weekStartDate(w){const d=new Date(PROJECT_START);d.setDate(d.getDate()+(w-1)*7);return d;}
+function fmtDate(d){return `${d.getMonth()+1}/${d.getDate()}`;}
+function fmtDateFull(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 
-function setF(f, btn) {{
-  curF = f;
-  ['all','todo','doing','review','done'].forEach(x=>
-    document.getElementById('f-'+x)?.classList.toggle('on', x===f));
+const AC   ={이지원:'#3b82f6',사이버:'#7c3aed',콜센터:'#10b981',인프라:'#f59e0b',PMO:'#64748b'};
+const ACbg ={이지원:'#eff6ff',사이버:'#f5f3ff',콜센터:'#ecfdf5',인프라:'#fffbeb',PMO:'#f8fafc'};
+const ACtc ={이지원:'#1d4ed8',사이버:'#6d28d9',콜센터:'#065f46',인프라:'#b45309',PMO:'#475569'};
+const SL   ={done:'완료',doing:'진행중',review:'검토중',todo:'대기'};
+const SC   ={done:'sb-done',doing:'sb-doing',review:'sb-review',todo:'sb-todo'};
+
+// ═══ 초기화 ══════════════════════════════════════════════════
+function initSelects(){
+  const sel=document.getElementById('weekSel');
+  const wf=document.getElementById('wfrom');
+  const wt=document.getElementById('wto');
+  sel.innerHTML='<option value="">주차 선택</option>';
+  wf.innerHTML=''; wt.innerHTML='';
+  MONTHS.forEach(m=>{
+    for(let w=m.s;w<=m.e;w++){
+      const d=weekStartDate(w);
+      const lbl=`W${w} — ${m.n} ${fmtDate(d)}`;
+      sel.insertAdjacentHTML('beforeend',`<option value="${w}">${lbl}</option>`);
+      wf.insertAdjacentHTML('beforeend',`<option value="${w}">W${w} (${fmtDate(d)}~)</option>`);
+      wt.insertAdjacentHTML('beforeend',`<option value="${w}">W${w} (~${fmtDate(new Date(d.getTime()+6*86400000))})</option>`);
+    }
+  });
+  document.getElementById('wto').value=TW;
+  // 날짜 범위 레이블
+  const ps=weekStartDate(1), pe=weekStartDate(TW); pe.setDate(pe.getDate()+6);
+  document.getElementById('date-range-label').textContent=`${fmtDateFull(ps)} ~ ${fmtDateFull(pe)} (${TW}주)`;
+  // 현재 주 표시
+  const ti=document.getElementById('today-info');
+  if(TODAY_W_INIT>=1&&TODAY_W_INIT<=TW)
+    ti.textContent=`🗓 현재: W${TODAY_W_INIT} (${fmtDate(TODAY)})`;
+  else if(TODAY_W_INIT<1)
+    ti.textContent=`🗓 프로젝트 시작 전`,ti.style.color='#7c3aed';
+}
+
+// ═══ 영역 카드 ═══════════════════════════════════════════════
+function renderAreaCards(){
+  const tasks=D.filter(r=>r.t==='t');
+  const AREAS=['이지원','사이버','콜센터','인프라','PMO'];
+  const NAMES={이지원:'이지원 시스템',사이버:'사이버보안',콜센터:'콜센터',인프라:'공통 인프라',PMO:'PMO'};
+  const el=document.getElementById('area-cards');
+  el.innerHTML='';
+  AREAS.forEach(area=>{
+    const at=tasks.filter(r=>r.area===area);
+    const adn=at.filter(r=>r.st==='done').length;
+    const adg=at.filter(r=>r.st==='doing').length;
+    const ap=at.length?Math.round(adn/at.length*100):0;
+    const col=AC[area]||'#64748b', bg=ACbg[area]||'#f8fafc', tc=ACtc[area]||'#475569';
+    const isActive=(curArea===area);
+    const card=document.createElement('div');
+    card.className='ac'+(isActive?' active':'');
+    card.style.cssText=`background:${bg};color:${tc};${isActive?'border-color:'+col:'border-color:transparent'}`;
+    card.onclick=()=>setA(curArea===area?'all':area,null);
+    card.innerHTML=`<div class="ac-label">${NAMES[area]||area}</div><div class="ac-pct" style="color:${col}">${ap}%</div><div class="ac-counts">${adn}/${at.length} 완료 · 진행 ${adg}</div><div class="ac-bar"><div class="ac-fill" style="width:${ap}%;background:${col}"></div></div>`;
+    el.appendChild(card);
+  });
+}
+
+// ═══ 간트 렌더링 ═════════════════════════════════════════════
+const pOpen={};
+D.filter(r=>r.t==='p').forEach(r=>pOpen[r.id]=true);
+let flt='all', curArea='all';
+
+function getWRange(){
+  return{from:parseInt(document.getElementById('wfrom')?.value||1),to:parseInt(document.getElementById('wto')?.value||TW)};
+}
+function resetWRange(){document.getElementById('wfrom').value=1;document.getElementById('wto').value=TW;render();}
+
+function render(){
+  renderAreaCards();
+  const tbl=document.getElementById('gtbl');
+  tbl.innerHTML='';
+  const{from,to}=getWRange();
+  const thead=tbl.createTHead();
+
+  // 헤더 행1 : 월
+  const hr1=thead.insertRow();
+  hr1.innerHTML='<th class="th-id" rowspan="2">ID</th><th class="th-nm" rowspan="2">작업명 / JIRA 이슈</th><th class="th-ow" rowspan="2">담당</th>';
+  MONTHS.forEach(m=>{
+    const vs=Math.max(m.s,from), ve=Math.min(m.e,to);
+    if(vs>ve) return;
+    const th=document.createElement('th');
+    th.className='th-mo'; th.colSpan=ve-vs+1; th.textContent='2026년 '+m.n;
+    hr1.appendChild(th);
+  });
+
+  // 헤더 행2 : 주차
+  const hr2=thead.insertRow();
+  for(let w=from;w<=to;w++){
+    const d=weekStartDate(w);
+    const th=document.createElement('th');
+    th.className='th-w'+(w===TODAY_W_INIT?' th-w-now':w<TODAY_W_INIT?' th-w-past':'');
+    th.textContent='W'+w;
+    th.title=`W${w}: ${fmtDate(d)} ~ ${fmtDate(new Date(d.getTime()+6*86400000))}`;
+    hr2.appendChild(th);
+  }
+
+  // 바디
+  const tbody=tbl.createTBody();
+  let curP=null;
+  D.forEach(row=>{
+    if(row.t==='p') curP=row.id;
+    if(curArea!=='all'&&row.t==='t'&&row.area!==curArea) return;
+    if(curArea!=='all'&&row.t==='m') return;
+    if(flt!=='all'&&row.t==='t'&&row.st!==flt) return;
+    if(flt!=='all'&&row.t==='m') return;
+    if(row.t==='t'&&(row.e<from||row.s>to)) return;
+    if(row.t==='m'&&(row.s<from||row.s>to)) return;
+
+    const isChild=row.t==='t'||row.t==='m';
+    const hide=isChild&&curP&&!pOpen[curP];
+    const tr=tbody.insertRow();
+    tr.className='r-'+{p:'phase',t:'task',m:'ms'}[row.t]+(hide?' hidden':'');
+    if(isChild) tr.dataset.ph=curP;
+
+    // ID 셀
+    const tdi=tr.insertCell(); tdi.className='td-id';
+    if(row.t==='p'){
+      const cv=document.createElement('span');
+      cv.className='chv'+(pOpen[row.id]?' o':'');
+      cv.textContent='▶'; cv.onclick=()=>togP(row.id);
+      tdi.appendChild(cv);
+      tdi.append(' '+row.id);
+      tdi.style.cssText='color:#475569;font-weight:700';
+    } else {
+      tdi.innerHTML=`<span style="color:#e2e8f0">└</span> ${row.id}`;
+    }
+
+    // Name 셀
+    const tdn=tr.insertCell(); tdn.className='td-nm';
+    const c=AC[row.area]||'#94a3b8';
+    const rl=document.createElement('div'); rl.className='rl';
+    const pip=document.createElement('div'); pip.className='rpip';
+    if(row.t==='m'){
+      pip.style.cssText='background:#fbbf24;border-radius:2px';
+      rl.appendChild(pip);
+      const sp=document.createElement('span');
+      sp.style.cssText='color:#b45309;font-weight:700;font-size:.76rem';
+      sp.textContent='◆ '+row.n.replace('◆ ','');
+      rl.appendChild(sp);
+    } else {
+      pip.style.background=c; rl.appendChild(pip);
+      const sp=document.createElement('span'); sp.className='rtxt';
+      if(row.t==='p') sp.style.cssText='font-weight:700;font-size:.79rem;color:#1e293b';
+      else sp.style.color='#334155';
+      sp.textContent=row.n;
+      rl.appendChild(sp);
+      if(row.jiraKey&&row.jiraUrl){
+        const a=document.createElement('a');
+        a.className='jkey'; a.href=row.jiraUrl; a.target='_blank';
+        a.textContent=row.jiraKey; a.title='JIRA에서 열기';
+        a.onclick=e=>e.stopPropagation();
+        rl.appendChild(a);
+      }
+      if(row.t==='t'){
+        const bd=document.createElement('span');
+        bd.className='sbadge '+SC[row.st]; bd.textContent=SL[row.st];
+        rl.appendChild(bd);
+      }
+    }
+    tdn.appendChild(rl);
+
+    // 담당 셀
+    const tdow=tr.insertCell(); tdow.className='td-ow';
+    if(row.owner){
+      const chip=document.createElement('span');
+      chip.className='owner-chip';
+      chip.style.cssText=`background:${ACbg[row.area]||'#f8fafc'};color:${ACtc[row.area]||'#475569'}`;
+      chip.textContent=row.owner; chip.title=row.owner;
+      tdow.appendChild(chip);
+    }
+
+    // 주차 셀
+    for(let w=from;w<=to;w++){
+      const td=tr.insertCell();
+      const isPast=w<TODAY_W_INIT, isNow=w===TODAY_W_INIT;
+      td.className='td-w'+(isNow?' col-now':isPast?' col-past':'');
+      if(row.t==='m'){
+        if(w===row.s){td.className+=' ms-cell';td.textContent='◆';td.title=`◆ ${row.n}\n${fmtDate(weekStartDate(w))}`;}
+      } else if(w>=row.s&&w<=row.e){
+        const isSE=row.s===row.e, isS=w===row.s, isE=w===row.e, isP=row.t==='p';
+        const div=document.createElement('div');
+        let cls=isP?'bph':'bar';
+        if(isSE) cls+=' bar-se'; else if(isS) cls+=' bar-s'; else if(isE) cls+=' bar-e';
+        div.className=cls; div.style.background=c;
+        if(!isP&&row.st==='done') div.classList.add('bar-done');
+        td.appendChild(div);
+        if(isS){
+          const sd=weekStartDate(row.s), ed=new Date(weekStartDate(row.e));
+          ed.setDate(ed.getDate()+6);
+          td.title=`${row.id}: ${row.n}${row.jiraKey?' ['+row.jiraKey+']':''}\n담당: ${row.owner||'-'}\n기간: ${fmtDate(sd)} ~ ${fmtDate(ed)} (${row.e-row.s+1}주)\n영역: ${row.area} | 상태: ${SL[row.st]||''}`;
+          td.style.cursor='help';
+        }
+      }
+    }
+  });
+}
+
+// ═══ 컨트롤 ══════════════════════════════════════════════════
+function togP(pid){pOpen[pid]=!pOpen[pid];render();}
+function setF(f,btn){flt=f;['all','todo','doing','review','done'].forEach(x=>document.getElementById('f-'+x)?.classList.toggle('on',x===f));render();}
+function setA(a,btn){curArea=a;['all','이지원','사이버','콜센터','인프라','PMO'].forEach(x=>document.getElementById('fa-'+x)?.classList.toggle('on',x===a));render();}
+function expAll(){D.filter(r=>r.t==='p').forEach(r=>pOpen[r.id]=true);render();}
+function colAll(){D.filter(r=>r.t==='p').forEach(r=>pOpen[r.id]=false);render();}
+function goToday(){jumpToWeek(Math.max(1,TODAY_W_INIT||1));}
+function jumpToWeek(w){
+  w=parseInt(w); if(!w) return;
+  const{from}=getWRange();
+  document.getElementById('gscroll').scrollTo({left:Math.max(0,(w-from)*28-100),behavior:'smooth'});
+  document.getElementById('weekSel').value=w;
+}
+
+// ═══ Excel 내보내기 ═══════════════════════════════════════════
+function exportExcel(){
+  if(typeof XLSX==='undefined'){alert('SheetJS 로딩 중입니다.');return;}
+  const wb=XLSX.utils.book_new();
+  // Sheet1: WBS 전체
+  const h1=['ID','JIRA Key','구분','작업명','업무영역','담당자','상태','시작주','종료주','기간(주)','시작일','종료일'];
+  const rows=D.map(r=>{
+    const sd=weekStartDate(r.s),ed=new Date(weekStartDate(r.e));ed.setDate(ed.getDate()+6);
+    return[r.id,r.jiraKey||'',{p:'Phase',t:'Task',m:'Milestone'}[r.t],r.n,r.area,r.owner||'',SL[r.st]||r.st,r.s,r.e,r.e-r.s+1,fmtDateFull(sd),fmtDateFull(ed)];
+  });
+  const ws1=XLSX.utils.aoa_to_sheet([h1,...rows]);
+  ws1['!cols']=[{wch:8},{wch:12},{wch:8},{wch:38},{wch:8},{wch:12},{wch:8},{wch:6},{wch:6},{wch:6},{wch:12},{wch:12}];
+  XLSX.utils.book_append_sheet(wb,ws1,'WBS 전체');
+  // Sheet2: Phase별
+  const h2=['Phase','JIRA Key','Phase명','전체','완료','진행중','검토중','대기','진척률(%)'];
+  let cp=null;const pm={};
+  D.forEach(r=>{if(r.t==='p'){cp=r.id;pm[r.id]={ph:r,kids:[]};}else if(r.t==='t'&&cp)pm[cp].kids.push(r);});
+  const pr2=Object.values(pm).map(({ph,kids})=>{
+    const tot=kids.length,dn=kids.filter(k=>k.st==='done').length,dg=kids.filter(k=>k.st==='doing').length,rv=kids.filter(k=>k.st==='review').length,td=kids.filter(k=>k.st==='todo').length;
+    return[ph.id,ph.jiraKey||'',ph.n,tot,dn,dg,rv,td,tot?Math.round(dn/tot*100):0];
+  });
+  const ws2=XLSX.utils.aoa_to_sheet([h2,...pr2]);
+  ws2['!cols']=[{wch:6},{wch:12},{wch:20},{wch:6},{wch:6},{wch:6},{wch:6},{wch:6},{wch:8}];
+  XLSX.utils.book_append_sheet(wb,ws2,'Phase 진척');
+  // Sheet3: 담당자별
+  const h3=['담당자','소속영역','담당 Task수','완료','진행중','대기','진척률(%)'];
+  const om={};
+  D.filter(r=>r.t==='t').forEach(r=>{const k=r.owner||'미지정';if(!om[k])om[k]={owner:k,area:r.area,tasks:[]};om[k].tasks.push(r);});
+  const pr3=Object.values(om).map(({owner,area,tasks})=>{
+    const tot=tasks.length,dn=tasks.filter(k=>k.st==='done').length,dg=tasks.filter(k=>k.st==='doing').length,td=tasks.filter(k=>k.st==='todo').length;
+    return[owner,area,tot,dn,dg,td,tot?Math.round(dn/tot*100):0];
+  });
+  const ws3=XLSX.utils.aoa_to_sheet([h3,...pr3]);
+  ws3['!cols']=[{wch:14},{wch:10},{wch:10},{wch:6},{wch:6},{wch:6},{wch:8}];
+  XLSX.utils.book_append_sheet(wb,ws3,'담당자별');
+  XLSX.writeFile(wb,'WBS_%%PROJECT_KEY%%_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
+
+// ═══ 초기화 ══════════════════════════════════════════════════
+function init(){
+  initSelects();
   render();
-}}
-function expAll() {{ PHASES.forEach(p=>open[p.id]=true);  render(); }}
-function colAll() {{ PHASES.forEach(p=>open[p.id]=false); render(); }}
-function tog(id)  {{ open[id]=!open[id]; render(); }}
-
-function render() {{
-  let html = '';
-  PHASES.forEach(p => {{
-    const tasks = curF==='all' ? p.tasks : p.tasks.filter(t=>t.status===curF);
-    if (!tasks.length && curF!=='all') return;
-
-    const pct2  = p.taskCount ? Math.round(p.doneCount/p.taskCount*100) : 0;
-    const isOpen = open[p.id];
-
-    html += `<div class="ph">
-      <div class="ph-hdr" onclick="tog('${{p.id}}')">
-        <span class="chv ${{isOpen?'o':''}}">▶</span>
-        <span class="ph-id" style="background:#1e3a5f;color:#38bdf8">${{p.id}}</span>
-        <span class="ph-name">${{p.name}}</span>
-        ${{p.jiraKey ? `<a class="tkey" href="${{p.jiraUrl}}" target="_blank"
-              onclick="event.stopPropagation()">${{p.jiraKey}}</a>` : ''}}
-        <div class="ph-meta">
-          ${{p.duedate ? `<span style="font-size:.6rem;color:#334155">🗓 ${{p.duedate}}</span>` : ''}}
-          <span style="font-size:.63rem;color:#475569">${{p.doneCount}}/${{p.taskCount}}</span>
-          <div class="mbar"><div class="mfill" style="width:${{pct2}}%;background:#38bdf8"></div></div>
-        </div>
-      </div>`;
-
-    if (isOpen) {{
-      html += `<div class="rows">`;
-      if (!tasks.length) {{
-        html += `<div class="empty-msg">이슈 없음</div>`;
-      }} else {{
-        tasks.forEach(t => {{
-          const ac    = AREA_CLS[t.area] || 'a-PMO';
-          const subs  = t.subs || [];
-          const subsH = subs.length ? `<div class="subs">` + subs.map(s=>`
-            <div class="sub">
-              <div class="sdot ${{s.status}}"></div>
-              <a href="${{JIRA_BASE}}/browse/${{s.key}}" target="_blank">${{s.key}}</a>
-              <span>${{s.name}}</span>
-            </div>`).join('') + `</div>` : '';
-
-          html += `<div class="tr">
-            <div class="status-dot s-${{t.status}}"></div>
-            <div class="tbody">
-              <div class="tr1">
-                <span class="tid">${{t.id}}</span>
-                <a class="tkey" href="${{t.jiraUrl}}" target="_blank">${{t.jiraKey}}</a>
-                <span class="tname${{t.status==='done'?' done':''}}">${{t.name}}</span>
-                <span class="area-tag ${{ac}}">${{t.area}}</span>
-                <span class="stag ${{SC[t.status]}}">${{SL[t.status]}}</span>
-                ${{t.assignee ? `<span class="tassign">👤 ${{t.assignee}}</span>` : ''}}
-                ${{t.duedate  ? `<span class="tdate">🗓 ${{t.duedate}}</span>` : ''}}
-              </div>
-              ${{subsH}}
-            </div>
-          </div>`;
-        }});
-      }}
-      html += `</div>`;
-    }}
-    html += `</div>`;
-  }});
-
-  document.getElementById('wbs').innerHTML =
-    html || `<div class="empty-msg">조건에 맞는 이슈가 없습니다</div>`;
-}}
-
-render();
+  if(TODAY_W_INIT>=1&&TODAY_W_INIT<=TW) setTimeout(()=>jumpToWeek(TODAY_W_INIT),400);
+}
 </script>
 </body>
 </html>"""
@@ -603,13 +945,13 @@ def main():
     ptype  = client.project_type()
     print(f"📡 JIRA [{PROJECT_KEY}] 데이터 수집 중... (유형: {ptype})")
 
-    phases = build_phases(client)
+    D = build_d_array(client)
 
-    total = sum(p["taskCount"] for p in phases)
-    done  = sum(p["doneCount"]  for p in phases)
-    print(f"✅ 수집 완료: Phase {len(phases)}개 / 이슈 {total}개 (완료 {done}개)")
+    tasks = [r for r in D if r["t"] == "t"]
+    done  = sum(1 for t in tasks if t["st"] == "done")
+    print(f"✅ 수집 완료: Phase {sum(1 for r in D if r['t']=='p')}개 / Task {len(tasks)}개 (완료 {done}개)")
 
-    html = build_html(phases, ptype)
+    html = build_html(D)
     os.makedirs(os.path.dirname(OUTPUT_PATH) or ".", exist_ok=True)
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
         f.write(html)
