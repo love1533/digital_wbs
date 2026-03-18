@@ -9,7 +9,7 @@ on:
     # - cron: "0 * * * *"
 
   push:
-    branches: [main]
+    branches: ["main", "claude/**"]
     paths:
       - "scripts/generate_wbs.py"   # 스크립트 변경 시 자동 재생성
 
@@ -32,11 +32,12 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      # 1. 소스 체크아웃
+      # 1. 소스 체크아웃 (트리거된 브랜치 기준)
       - name: 📥 Checkout
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.ref }}
 
       # 2. Python 환경
       - name: 🐍 Python 3.11 설정
