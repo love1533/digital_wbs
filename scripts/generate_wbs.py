@@ -40,6 +40,8 @@ OUTPUT_PATH     = os.environ.get("WBS_OUTPUT", "docs/index.html")
 WBS_TITLE       = os.environ.get("WBS_TITLE", "프로젝트 WBS")
 PROJECT_START_S = os.environ.get("PROJECT_START_DATE", "2026-03-23")
 TOTAL_WEEKS     = int(os.environ.get("TOTAL_WEEKS", "32"))
+SNAPSHOT_DIR    = os.environ.get("SNAPSHOT_DIR",    "docs/data/snapshots")
+HISTORY_PATH    = os.environ.get("HISTORY_OUTPUT",  "docs/history.html")
 
 try:
     PROJECT_START = datetime.strptime(PROJECT_START_S, "%Y-%m-%d")
@@ -294,26 +296,89 @@ def make_d_phase(phase_id: str, issue: dict, tasks: list) -> list[dict]:
     return [phase] + tasks
 
 
+# ── 스냅샷 저장 ────────────────────────────────────────────────────────────────
+def _extract_snapshot_issue(issue: dict) -> dict:
+    f = issue["fields"]
+    start_raw = None
+    for key in START_DATE_CANDIDATES:
+        val = f.get(key)
+        if val and isinstance(val, str) and _DATE_RE.match(val):
+            start_raw = val[:10]; break
+    if not start_raw:
+        for key in sorted(f):
+            val = f.get(key)
+            if key.startswith("customfield_") and isinstance(val, str) and _DATE_RE.match(val or ""):
+                start_raw = val[:10]; break
+    parent = f.get("parent") or {}
+    return {
+        "key":        issue["key"],
+        "summary":    f.get("summary", ""),
+        "status":     (f.get("status") or {}).get("name", ""),
+        "status_wbs": map_status((f.get("status") or {}).get("name", "")),
+        "priority":   (f.get("priority") or {}).get("name", "Medium"),
+        "assignee":   (f.get("assignee") or {}).get("displayName", ""),
+        "start_date": start_raw or "",
+        "due_date":   f.get("duedate") or "",
+        "issue_type": (f.get("issuetype") or {}).get("name", ""),
+        "parent_key": parent.get("key", ""),
+        "epic_link":  f.get("customfield_10014") or "",
+        "labels":     f.get("labels") or [],
+        "components": [c["name"] for c in (f.get("components") or [])],
+        "created":    (f.get("created") or "")[:10],
+        "updated":    (f.get("updated") or "")[:10],
+    }
+
+
+def save_snapshot(issues: list) -> str:
+    today = datetime.now().strftime("%Y-%m-%d")
+    os.makedirs(SNAPSHOT_DIR, exist_ok=True)
+    snapshot = {
+        "date":        today,
+        "project_key": PROJECT_KEY,
+        "fetched_at":  datetime.now().isoformat(),
+        "total":       len(issues),
+        "issues":      [_extract_snapshot_issue(i) for i in issues],
+    }
+    path = os.path.join(SNAPSHOT_DIR, f"{today}.json")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(snapshot, f, ensure_ascii=False, indent=2)
+    _update_snapshot_index(today, len(issues))
+    return path
+
+
+def _update_snapshot_index(date: str, count: int):
+    idx_path = os.path.join(SNAPSHOT_DIR, "index.json")
+    if os.path.exists(idx_path):
+        with open(idx_path, "r", encoding="utf-8") as f:
+            idx = json.load(f)
+    else:
+        idx = {"project_key": PROJECT_KEY, "jira_url": JIRA_URL, "snapshots": []}
+    existing = next((s for s in idx["snapshots"] if s["date"] == date), None)
+    entry = {"date": date, "count": count, "file": f"{date}.json",
+             "updated_at": datetime.now().isoformat()}
+    if existing:
+        existing.update(entry)
+    else:
+        idx["snapshots"].append(entry)
+    idx["snapshots"].sort(key=lambda x: x["date"], reverse=True)
+    with open(idx_path, "w", encoding="utf-8") as f:
+        json.dump(idx, f, ensure_ascii=False, indent=2)
+
+
 # ── JIRA Software (Epic 기반) ──────────────────────────────────────────────────
-def build_d_software(client: JiraClient) -> list:
-    epics = client.search(
-        f'project = "{PROJECT_KEY}" AND issuetype = Epic ORDER BY rank ASC, created ASC'
-    )
-    # Sub-task를 제외한 모든 비Epic 이슈 (Story, Task, Bug, 기타 포함)
-    all_issues = client.search(
-        f'project = "{PROJECT_KEY}" AND issuetype not in (Epic, Sub-task) '
-        f'ORDER BY rank ASC, created ASC'
-    )
-    print(f"  • 에픽: {len(epics)}개  이슈(Task/Story/기타): {len(all_issues)}개")
+def build_d_software(all_issues: list) -> list:
+    epics     = [i for i in all_issues
+                 if (i["fields"].get("issuetype") or {}).get("name", "").lower() == "epic"]
+    non_epics = [i for i in all_issues
+                 if (i["fields"].get("issuetype") or {}).get("name", "").lower() not in ("epic", "sub-task", "subtask")]
+    print(f"  • 에픽: {len(epics)}개  이슈(Task/Story/기타): {len(non_epics)}개")
 
     epic_map: dict = {e["key"]: [] for e in epics}
     unassigned = []
-    for iss in all_issues:
+    for iss in non_epics:
         fld = iss["fields"]
-        # Classic: customfield_10014 (Epic Link)
         epic_key = fld.get("customfield_10014")
         if not epic_key:
-            # Next-gen / Team-managed: parent 필드로 Epic 참조
             parent = fld.get("parent") or {}
             parent_itype = (
                 (parent.get("fields") or {}).get("issuetype", {}).get("name", "")
@@ -333,9 +398,7 @@ def build_d_software(client: JiraClient) -> list:
         D.extend(make_d_phase(pid, epic, tasks))
 
     if unassigned:
-        # 미분류 이슈: 더미 phase로 감싸기
         tasks = [make_d_task(iss, f"0.{j+1}") for j, iss in enumerate(unassigned)]
-        # 간단 phase 오브젝트
         sw = min(t["s"] for t in tasks) if tasks else 1
         ew = max(t["e"] for t in tasks) if tasks else 1
         D.insert(0, {"id":"P0","jiraKey":"","jiraUrl":"","n":"미분류 이슈","t":"p","area":"PMO","owner":"","s":sw,"e":ew,"st":"todo"})
@@ -344,10 +407,8 @@ def build_d_software(client: JiraClient) -> list:
 
 
 # ── JIRA Work Management (Task 계층) ──────────────────────────────────────────
-def build_d_workmanagement(client: JiraClient) -> list:
-    all_issues = client.search(f'project = "{PROJECT_KEY}" ORDER BY created ASC')
+def build_d_workmanagement(all_issues: list) -> list:
     print(f"  • 전체 이슈: {len(all_issues)}개")
-
     issue_map = {iss["key"]: iss for iss in all_issues}
     top_level, children = [], {}
 
@@ -361,44 +422,34 @@ def build_d_workmanagement(client: JiraClient) -> list:
             top_level.append(iss)
 
     print(f"  • 최상위 Task(Phase): {len(top_level)}개")
-
     D = []
-    for i, parent in enumerate(top_level):
+    for i, par in enumerate(top_level):
         pid   = f"P{i+1}"
-        kids  = children.get(parent["key"], [])
+        kids  = children.get(par["key"], [])
         tasks = [make_d_task(child, f"{i+1}.{j+1}") for j, child in enumerate(kids)]
         if not tasks:
-            tasks = [make_d_task(parent, f"{i+1}.1")]
-        D.extend(make_d_phase(pid, parent, tasks))
+            tasks = [make_d_task(par, f"{i+1}.1")]
+        D.extend(make_d_phase(pid, par, tasks))
 
-    # 고아 이슈
     top_keys   = {p["key"] for p in top_level}
     child_keys = {iss["key"] for kids in children.values() for iss in kids}
     orphans    = [issue_map[k] for k in set(issue_map) - top_keys - child_keys]
     if orphans:
         tasks = [make_d_task(iss, f"0.{j+1}") for j, iss in enumerate(orphans)]
-        sw    = min(t["s"] for t in tasks)
-        ew    = max(t["e"] for t in tasks)
+        sw, ew = min(t["s"] for t in tasks), max(t["e"] for t in tasks)
         D.insert(0, {"id":"P0","jiraKey":"","jiraUrl":"","n":"기타 이슈","t":"p","area":"PMO","owner":"","s":sw,"e":ew,"st":"todo"})
         D[1:1] = tasks
     return D
 
 
-def build_d_array(client: JiraClient) -> list:
-    ptype = client.project_type()
+def build_d_array(all_issues: list, ptype: str) -> list:
     print(f"  • 프로젝트 유형: {ptype}")
-
-    # 시작일 커스텀 필드 자동 탐색 → JIRA_FIELDS에 추가
-    start_field = client.discover_start_field()
-    if start_field not in JIRA_FIELDS:
-        JIRA_FIELDS.append(start_field)
-        START_DATE_CANDIDATES.insert(0, start_field)
-
     if ptype == "software":
-        epics = client.search(f'project = "{PROJECT_KEY}" AND issuetype = Epic', max_results=1)
+        epics = [i for i in all_issues
+                 if (i["fields"].get("issuetype") or {}).get("name", "").lower() == "epic"]
         if epics:
-            return build_d_software(client)
-    return build_d_workmanagement(client)
+            return build_d_software(all_issues)
+    return build_d_workmanagement(all_issues)
 
 
 # ── HTML 생성 ──────────────────────────────────────────────────────────────────
@@ -448,6 +499,412 @@ def build_html(D: list) -> str:
         .replace("%%MILESTONES%%",    str(sum(1 for r in D if r["t"] == "m")))
     )
     return html
+
+
+def build_history_html() -> str:
+    pw_hash    = sha256_hex(WBS_PASSWORD)
+    ps_str     = PROJECT_START.strftime("%Y-%m-%d")
+    jira_url   = JIRA_URL
+    proj_key   = PROJECT_KEY
+    months_json = _build_months_json(ps_str, TOTAL_WEEKS)
+    return f"""<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>{WBS_TITLE} — 이력 조회</title>
+<style>
+*{{box-sizing:border-box;margin:0;padding:0}}
+body{{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f4f8;color:#1e293b;font-size:13px}}
+/* ── 게이트 ── */
+#gate{{position:fixed;inset:0;background:#1e293b;display:flex;align-items:center;justify-content:center;z-index:9999}}
+.gb{{background:#fff;border-radius:1rem;padding:2.5rem 3rem;width:360px;box-shadow:0 20px 60px rgba(0,0,0,.4)}}
+.gb-title{{font-size:1.2rem;font-weight:700;color:#1e293b;margin-bottom:1.5rem;text-align:center}}
+.gb-input{{width:100%;padding:.65rem .9rem;border:2px solid #e2e8f0;border-radius:.5rem;font-size:.95rem;margin-bottom:.8rem;outline:none}}
+.gb-input:focus{{border-color:#2563eb}}
+.gb-btn{{width:100%;padding:.7rem;background:#2563eb;color:#fff;border:none;border-radius:.5rem;font-size:.95rem;font-weight:600;cursor:pointer}}
+.gb-btn:hover{{background:#1d4ed8}}
+.gb-err{{color:#dc2626;font-size:.78rem;text-align:center;margin-top:.5rem;min-height:1em}}
+/* ── 앱 ── */
+#main{{display:none;flex-direction:column;min-height:100vh}}
+.app-hdr{{background:#1e293b;color:#f8fafc;padding:.6rem 1.4rem;display:flex;align-items:center;gap:.8rem;position:sticky;top:0;z-index:200}}
+.app-hdr-title{{font-weight:700;font-size:.95rem}}
+.app-hdr-sub{{font-size:.72rem;color:#94a3b8}}
+.hdr-link{{color:#60a5fa;text-decoration:none;font-size:.72rem}}
+.hdr-link:hover{{color:#93c5fd}}
+/* ── 컨트롤 바 ── */
+.ctrl-bar{{padding:.5rem 1.4rem;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;position:sticky;top:40px;z-index:190}}
+.ctrl-label{{font-size:.72rem;color:#64748b;font-weight:600}}
+select.date-sel{{padding:.28rem .6rem;border:1.5px solid #e2e8f0;border-radius:.3rem;font-size:.73rem;background:#fff;cursor:pointer}}
+.view-btn{{padding:.28rem .75rem;border:1.5px solid #e2e8f0;border-radius:.3rem;font-size:.72rem;cursor:pointer;background:#fff;color:#475569;font-weight:600}}
+.view-btn.on{{background:#2563eb;border-color:#2563eb;color:#fff}}
+.badge{{display:inline-block;font-size:.55rem;padding:.06rem .3rem;border-radius:99px;font-weight:700;white-space:nowrap;vertical-align:middle}}
+.b-todo{{background:#f1f5f9;color:#64748b}}
+.b-doing{{background:#dbeafe;color:#1d4ed8}}
+.b-review{{background:#fef3c7;color:#92400e}}
+.b-done{{background:#dcfce7;color:#166534}}
+.b-high{{background:#fee2e2;color:#991b1b}}
+.b-medium{{background:#fef9c3;color:#854d0e}}
+.b-low{{background:#f1f5f9;color:#64748b}}
+/* ── 이슈 테이블 ── */
+#tbl-view{{overflow:auto;flex:1;min-height:0}}
+.iss-tbl{{width:100%;border-collapse:collapse;font-size:.72rem}}
+.iss-tbl th{{background:#1e293b;color:#94a3b8;padding:.4rem .6rem;text-align:left;position:sticky;top:0;font-weight:600;white-space:nowrap}}
+.iss-tbl td{{padding:.35rem .6rem;border-bottom:1px solid #f1f5f9;vertical-align:middle}}
+.iss-tbl tr:hover td{{background:#eff6ff}}
+.iss-tbl .key-cell a{{color:#2563eb;text-decoration:none;font-family:Consolas,monospace;font-weight:700}}
+.iss-tbl .key-cell a:hover{{text-decoration:underline}}
+.sum-cell{{max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
+.diff-add{{background:#dcfce7!important}}
+.diff-del{{background:#fee2e2!important;text-decoration:line-through;opacity:.6}}
+.diff-chg{{background:#fef9c3!important}}
+/* ── Gantt ── */
+#gantt-view{{overflow:auto;flex:1;min-height:0}}
+.gtbl{{border-collapse:collapse;table-layout:fixed;font-size:.72rem}}
+.gtbl th,.gtbl td{{border:1px solid #e2e8f0;padding:0;white-space:nowrap;overflow:hidden}}
+.td-id{{position:sticky;left:0;z-index:10;width:90px;min-width:90px;background:#fff;padding:.25rem .4rem;font-size:.6rem;font-family:Consolas,monospace;color:#64748b}}
+.td-nm{{position:sticky;left:90px;z-index:10;width:230px;min-width:230px;background:#fff;padding:.25rem .5rem}}
+.td-ow{{position:sticky;left:320px;z-index:10;width:80px;min-width:80px;background:#fff;padding:.25rem .35rem;text-align:center}}
+.th-id{{position:sticky;left:0;top:0;z-index:25;background:#1e293b;color:#94a3b8;font-size:.59rem;padding:.4rem .4rem;width:90px;min-width:90px;border-color:#334155!important}}
+.th-nm{{position:sticky;left:90px;top:0;z-index:25;background:#1e293b;color:#94a3b8;font-size:.59rem;padding:.4rem .65rem;width:230px;min-width:230px;border-color:#334155!important}}
+.th-ow{{position:sticky;left:320px;top:0;z-index:25;background:#1e293b;color:#94a3b8;font-size:.59rem;padding:.4rem .4rem;width:80px;min-width:80px;border-color:#334155!important;text-align:center}}
+.th-mo{{background:#334155;color:#e2e8f0;font-size:.7rem;padding:.36rem .35rem;text-align:center;border-color:#475569!important;position:sticky;top:0;z-index:6}}
+.th-w{{background:#f8fafc;text-align:center;width:52px;min-width:52px;max-width:52px;border-color:#e2e8f0!important;cursor:default;padding:.14rem .1rem;vertical-align:top;line-height:1;position:sticky;z-index:5}}
+.th-w-num{{font-size:.63rem;font-weight:700;color:#475569;line-height:1.25}}
+.th-w-dt{{font-size:.47rem;color:#94a3b8;line-height:1.25;letter-spacing:-.01em;white-space:nowrap}}
+.bar{{height:12px;margin:10px 0;border-radius:4px;opacity:.85}}
+.r-phase .td-id,.r-phase .td-nm,.r-phase .td-ow{{background:#f1f5f9!important}}
+.r-phase .td-nm{{font-weight:700;color:#1e293b}}
+.info-bar{{padding:.35rem 1.4rem;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:.7rem;color:#475569;display:flex;gap:1rem;flex-wrap:wrap}}
+.diff-legend{{display:flex;gap:.5rem;align-items:center;font-size:.68rem;color:#64748b}}
+.dl-dot{{width:10px;height:10px;border-radius:2px;display:inline-block}}
+</style>
+</head>
+<body>
+<div id="gate">
+  <div class="gb">
+    <div class="gb-title">🗓 WBS 이력 조회</div>
+    <input id="gpw" class="gb-input" type="password" placeholder="비밀번호" autocomplete="current-password"/>
+    <button class="gb-btn" onclick="checkPw()">확인</button>
+    <div id="gerr" class="gb-err"></div>
+  </div>
+</div>
+<div id="main">
+  <div class="app-hdr">
+    <span class="app-hdr-title">📅 {WBS_TITLE} — 이력 조회</span>
+    <span class="app-hdr-sub" id="snap-info">스냅샷 로딩 중...</span>
+    <span style="flex:1"></span>
+    <a href="index.html" class="hdr-link">← 현재 WBS</a>
+  </div>
+  <div class="ctrl-bar">
+    <span class="ctrl-label">날짜 선택:</span>
+    <select class="date-sel" id="date-sel" onchange="loadSnapshot(this.value)">
+      <option value="">-- 날짜 선택 --</option>
+    </select>
+    <span class="ctrl-label" style="margin-left:.5rem">비교:</span>
+    <select class="date-sel" id="date-sel2" onchange="renderCurrent()">
+      <option value="">-- 없음 --</option>
+    </select>
+    <span style="flex:1"></span>
+    <button class="view-btn on" id="vb-tbl" onclick="setView('tbl')">목록</button>
+    <button class="view-btn" id="vb-gantt" onclick="setView('gantt')">WBS</button>
+  </div>
+  <div class="info-bar" id="info-bar">이슈를 선택해주세요</div>
+  <div id="tbl-view"></div>
+  <div id="gantt-view" style="display:none"></div>
+</div>
+<script>
+const PW_HASH="{pw_hash}";
+const JIRA_BASE="{jira_url}";
+const PROJECT_KEY="{proj_key}";
+const PROJECT_START=new Date("{ps_str}");
+const TOTAL_WEEKS={TOTAL_WEEKS};
+const MONTHS={months_json};
+const AC={{'이지원':'#3b82f6','사이버':'#8b5cf6','콜센터':'#10b981','인프라':'#f59e0b','PMO':'#94a3b8'}};
+const BC={{'이지원':'#2563eb','사이버':'#7c3aed','콜센터':'#059669','인프라':'#d97706','PMO':'#64748b'}};
+
+// ── 인증 ──
+async function sha256(msg){{
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(msg));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}}
+async function checkPw(){{
+  const h=await sha256(document.getElementById('gpw').value);
+  if(h===PW_HASH){{document.getElementById('gate').style.display='none';document.getElementById('main').style.display='flex';init();}}
+  else document.getElementById('gerr').textContent='비밀번호가 올바르지 않습니다.';
+}}
+document.getElementById('gpw').addEventListener('keydown',e=>{{if(e.key==='Enter')checkPw();}});
+
+// ── 유틸 ──
+function dateToWeek(ds){{
+  if(!ds)return null;
+  const d=new Date(ds),delta=Math.floor((d-PROJECT_START)/86400000);
+  if(delta<0)return 1;
+  return Math.min(Math.floor(delta/7)+1,TOTAL_WEEKS);
+}}
+function weekStartDate(w){{const d=new Date(PROJECT_START);d.setDate(d.getDate()+(w-1)*7);return d;}}
+function fmtDate(d){{return(d.getMonth()+1)+'/'+(d.getDate());}}
+function detectArea(summary,labels,components){{
+  const txt=[summary,...(labels||[]),...(components||[])].join(' ').toLowerCase();
+  if(['이지원','마이다스','법인','공동대표','ocr','챗봇','팩토리','상품','app','고도화'].some(k=>txt.includes(k)))return '이지원';
+  if(['사이버','보안','사이버보증'].some(k=>txt.includes(k)))return '사이버';
+  if(['콜센터','상담','ars','보이는ars'].some(k=>txt.includes(k)))return '콜센터';
+  if(['인프라','서버','소스코드','응답시간','성능','형상'].some(k=>txt.includes(k)))return '인프라';
+  return 'PMO';
+}}
+function mapStatus(s){{
+  s=(s||'').toLowerCase();
+  if(['done','complete','closed','resolved','완료','종료'].some(x=>s.includes(x)))return 'done';
+  if(['review','qa','검토','리뷰'].some(x=>s.includes(x)))return 'review';
+  if(['progress','develop','진행','개발'].some(x=>s.includes(x)))return 'doing';
+  return 'todo';
+}}
+const SL={{'done':'완료','doing':'진행','review':'검토','todo':'대기'}};
+const SC={{'done':'b-done','doing':'b-doing','review':'b-review','todo':'b-todo'}};
+const PL={{'High':'b-high','Medium':'b-medium','Low':'b-low'}};
+
+// ── 상태 ──
+let curSnap=null, cmpSnap=null, curView='tbl';
+
+// ── 초기화 ──
+async function init(){{
+  try{{
+    const r=await fetch('./data/snapshots/index.json');
+    const idx=await r.json();
+    const s1=document.getElementById('date-sel');
+    const s2=document.getElementById('date-sel2');
+    idx.snapshots.forEach(s=>{{
+      [s1,s2].forEach(sel=>{{
+        const o=document.createElement('option');
+        o.value=s.date;o.textContent=s.date+' ('+s.count+'건)';sel.appendChild(o);
+      }});
+    }});
+    document.getElementById('snap-info').textContent='스냅샷 '+idx.snapshots.length+'개 | 프로젝트: '+PROJECT_KEY;
+    if(idx.snapshots.length>0){{s1.value=idx.snapshots[0].date;loadSnapshot(idx.snapshots[0].date);}}
+  }}catch(e){{document.getElementById('snap-info').textContent='스냅샷 없음 (Actions 실행 후 생성됩니다)';}}
+}}
+
+async function loadSnapshot(date){{
+  if(!date)return;
+  try{{
+    const r=await fetch('./data/snapshots/'+date+'.json');
+    curSnap=await r.json();
+    const date2=document.getElementById('date-sel2').value;
+    if(date2){{
+      const r2=await fetch('./data/snapshots/'+date2+'.json');
+      cmpSnap=await r2.json();
+    }}else cmpSnap=null;
+    renderCurrent();
+  }}catch(e){{alert('스냅샷 로드 실패: '+e.message);}}
+}}
+
+async function renderCurrent(){{
+  const date2=document.getElementById('date-sel2').value;
+  if(date2&&(!cmpSnap||cmpSnap.date!==date2)){{
+    try{{const r=await fetch('./data/snapshots/'+date2+'.json');cmpSnap=await r.json();}}
+    catch(e){{cmpSnap=null;}}
+  }}
+  if(!curSnap)return;
+  updateInfoBar();
+  if(curView==='tbl')renderTable();
+  else renderGantt();
+}}
+
+function setView(v){{
+  curView=v;
+  document.getElementById('tbl-view').style.display=v==='tbl'?'block':'none';
+  document.getElementById('gantt-view').style.display=v==='gantt'?'block':'none';
+  document.getElementById('vb-tbl').className='view-btn'+(v==='tbl'?' on':'');
+  document.getElementById('vb-gantt').className='view-btn'+(v==='gantt'?' on':'');
+  renderCurrent();
+}}
+
+function updateInfoBar(){{
+  if(!curSnap)return;
+  const iss=curSnap.issues;
+  const tot=iss.length,done=iss.filter(i=>i.status_wbs==='done').length;
+  const doing=iss.filter(i=>i.status_wbs==='doing').length,review=iss.filter(i=>i.status_wbs==='review').length;
+  const td=iss.filter(i=>i.status_wbs==='todo').length;
+  let html=`<b>${{curSnap.date}}</b> | 전체 ${{tot}}건 | `;
+  html+=`<span class="badge b-done">완료 ${{done}}</span> `;
+  html+=`<span class="badge b-doing">진행 ${{doing}}</span> `;
+  html+=`<span class="badge b-review">검토 ${{review}}</span> `;
+  html+=`<span class="badge b-todo">대기 ${{td}}</span>`;
+  if(cmpSnap)html+=` &nbsp;↔ 비교: <b>${{cmpSnap.date}}</b> <span style="color:#64748b;font-size:.65rem">(🟢추가 🔴삭제 🟡변경)</span>`;
+  document.getElementById('info-bar').innerHTML=html;
+}}
+
+// ── 테이블 뷰 ──
+function renderTable(){{
+  if(!curSnap)return;
+  const issues=curSnap.issues;
+  const cmpMap=cmpSnap?Object.fromEntries(cmpSnap.issues.map(i=>[i.key,i])):{{}};
+  let rows='';
+  issues.forEach(iss=>{{
+    const cmp=cmpMap[iss.key];
+    let rowCls='';
+    if(cmpSnap&&!cmp)rowCls='diff-add';
+    else if(cmpSnap&&cmp&&(cmp.status!==iss.status||cmp.due_date!==iss.due_date||cmp.assignee!==iss.assignee))rowCls='diff-chg';
+    const jiraLink=JIRA_BASE?`<a href="${{JIRA_BASE}}/browse/${{iss.key}}" target="_blank">${{iss.key}}</a>`:iss.key;
+    rows+=`<tr class="${{rowCls}}">
+      <td class="key-cell">${{jiraLink}}</td>
+      <td class="sum-cell" title="${{iss.summary.replace(/"/g,'&quot;')}}">${{iss.summary}}</td>
+      <td>${{iss.issue_type}}</td>
+      <td><span class="badge ${{SC[iss.status_wbs]||'b-todo'}}">${{SL[iss.status_wbs]||iss.status}}</span></td>
+      <td><span class="badge ${{PL[iss.priority]||'b-medium'}}">${{iss.priority||'-'}}</span></td>
+      <td>${{iss.assignee||'-'}}</td>
+      <td style="font-family:monospace;font-size:.65rem">${{iss.start_date||'-'}}</td>
+      <td style="font-family:monospace;font-size:.65rem">${{iss.due_date||'-'}}</td>
+    </tr>`;
+  }});
+  // 비교: 삭제된 이슈
+  if(cmpSnap){{
+    const curKeys=new Set(issues.map(i=>i.key));
+    cmpSnap.issues.filter(i=>!curKeys.has(i.key)).forEach(iss=>{{
+      const jiraLink=JIRA_BASE?`<a href="${{JIRA_BASE}}/browse/${{iss.key}}" target="_blank">${{iss.key}}</a>`:iss.key;
+      rows+=`<tr class="diff-del">
+        <td class="key-cell">${{jiraLink}}</td>
+        <td class="sum-cell">${{iss.summary}}</td>
+        <td>${{iss.issue_type}}</td>
+        <td><span class="badge ${{SC[iss.status_wbs]||'b-todo'}}">${{SL[iss.status_wbs]||iss.status}}</span></td>
+        <td><span class="badge ${{PL[iss.priority]||'b-medium'}}">${{iss.priority||'-'}}</span></td>
+        <td>${{iss.assignee||'-'}}</td>
+        <td style="font-family:monospace;font-size:.65rem">${{iss.start_date||'-'}}</td>
+        <td style="font-family:monospace;font-size:.65rem">${{iss.due_date||'-'}}</td>
+      </tr>`;
+    }});
+  }}
+  document.getElementById('tbl-view').innerHTML=`
+  <table class="iss-tbl">
+    <thead><tr>
+      <th>KEY</th><th>Summary</th><th>Type</th><th>Status</th>
+      <th>Priority</th><th>Assignee</th><th>Start</th><th>Due</th>
+    </tr></thead>
+    <tbody>${{rows}}</tbody>
+  </table>`;
+}}
+
+// ── Gantt 뷰 ──
+function buildDArray(issues){{
+  const epicIssues={{}};
+  const nonEpics=[];
+  issues.forEach(i=>{{
+    if((i.issue_type||'').toLowerCase()==='epic')epicIssues[i.key]=i;
+    else if((i.issue_type||'').toLowerCase()!=='sub-task')nonEpics.push(i);
+  }});
+  const hasEpics=Object.keys(epicIssues).length>0;
+  const D=[];
+  if(hasEpics){{
+    const epicMap={{}};
+    Object.keys(epicIssues).forEach(k=>epicMap[k]=[]);
+    const unassigned=[];
+    nonEpics.forEach(iss=>{{
+      const ek=iss.epic_link||(iss.parent_key&&epicIssues[iss.parent_key]?iss.parent_key:null);
+      if(ek&&epicMap[ek])epicMap[ek].push(iss);
+      else unassigned.push(iss);
+    }});
+    let pi=1;
+    Object.entries(epicIssues).forEach(([k,epic])=>{{
+      const sw=dateToWeek(epic.start_date)||1,ew=dateToWeek(epic.due_date)||sw;
+      const tasks=epicMap[k].map((iss,j)=>issueToTask(iss,pi+'.'+((j+1))));
+      const tsw=tasks.length?Math.min(...tasks.map(t=>t.s)):sw;
+      const tew=tasks.length?Math.max(...tasks.map(t=>t.e)):ew;
+      D.push({{id:'P'+pi,jiraKey:k,jiraUrl:JIRA_BASE?JIRA_BASE+'/browse/'+k:'',n:epic.summary,t:'p',area:detectArea(epic.summary,epic.labels,epic.components),owner:epic.assignee,s:Math.min(sw,tsw),e:Math.max(ew,tew),st:mapStatus(epic.status)}});
+      D.push(...tasks);pi++;
+    }});
+    if(unassigned.length){{
+      const tasks=unassigned.map((iss,j)=>issueToTask(iss,'0.'+(j+1)));
+      const sw2=Math.min(...tasks.map(t=>t.s)),ew2=Math.max(...tasks.map(t=>t.e));
+      D.unshift({{id:'P0',n:'미분류',t:'p',area:'PMO',owner:'',s:sw2,e:ew2,st:'todo'}},...tasks);
+    }}
+  }}else{{
+    // Work Management: parent → phase
+    const topLevel=[],children={{}};
+    issues.forEach(iss=>{{
+      if(iss.parent_key)children[iss.parent_key]=(children[iss.parent_key]||[]).concat([iss]);
+      else topLevel.push(iss);
+    }});
+    topLevel.forEach((par,i)=>{{
+      const kids=children[par.key]||[];
+      const tasks=kids.length?kids.map((k,j)=>issueToTask(k,(i+1)+'.'+(j+1))):[issueToTask(par,(i+1)+'.1')];
+      const sw=dateToWeek(par.start_date)||1,ew=dateToWeek(par.due_date)||sw;
+      const tsw=Math.min(...tasks.map(t=>t.s)),tew=Math.max(...tasks.map(t=>t.e));
+      D.push({{id:'P'+(i+1),jiraKey:par.key,jiraUrl:JIRA_BASE?JIRA_BASE+'/browse/'+par.key:'',n:par.summary,t:'p',area:detectArea(par.summary,par.labels,par.components),owner:par.assignee,s:Math.min(sw,tsw),e:Math.max(ew,tew),st:mapStatus(par.status)}});
+      D.push(...tasks);
+    }});
+  }}
+  return D;
+}}
+function issueToTask(iss,wbsId){{
+  const sw=dateToWeek(iss.start_date)||1,ew=dateToWeek(iss.due_date)||sw;
+  return {{id:wbsId,jiraKey:iss.key,jiraUrl:JIRA_BASE?JIRA_BASE+'/browse/'+iss.key:'',n:iss.summary,t:'t',area:detectArea(iss.summary,iss.labels,iss.components),owner:iss.assignee||'',s:sw,e:ew,st:mapStatus(iss.status),sd:iss.start_date,ed:iss.due_date}};
+}}
+
+function renderGantt(){{
+  if(!curSnap)return;
+  const D=buildDArray(curSnap.issues);
+  const div=document.getElementById('gantt-view');
+  const tbl=document.createElement('table');tbl.className='gtbl';
+  const thead=tbl.createTHead();
+  const hr1=thead.insertRow(),hr2=thead.insertRow();
+  hr1.innerHTML='<th class="th-id" rowspan="2">KEY</th><th class="th-nm" rowspan="2">작업명</th><th class="th-ow" rowspan="2">담당</th>';
+  MONTHS.forEach(m=>{{
+    const th=document.createElement('th');th.className='th-mo';th.colSpan=m.e-m.s+1;th.textContent='2026년 '+m.n;hr1.appendChild(th);
+  }});
+  for(let w=1;w<=TOTAL_WEEKS;w++){{
+    const d=weekStartDate(w),de=new Date(d.getTime()+6*86400000);
+    const th=document.createElement('th');th.className='th-w';
+    th.innerHTML=`<div class="th-w-num">W${{w}}</div><div class="th-w-dt">${{fmtDate(d)}}~${{de.getDate()}}</div>`;
+    hr2.appendChild(th);
+  }}
+  const tbody=tbl.createTBody();
+  let curP=null;
+  D.forEach(row=>{{
+    const tr=tbody.insertRow();tr.className='r-'+{{p:'phase',t:'task',m:'ms'}}[row.t];
+    if(row.t==='p')curP=row.id;
+    // KEY
+    const tdi=tr.insertCell();tdi.className='td-id';
+    if(row.jiraKey&&JIRA_BASE){{
+      const a=document.createElement('a');a.href=JIRA_BASE+'/browse/'+row.jiraKey;a.target='_blank';
+      a.textContent=row.jiraKey;a.style.cssText='color:#2563eb;text-decoration:none;font-family:Consolas;font-size:.6rem';
+      tdi.appendChild(a);
+    }}else tdi.textContent=row.id;
+    // 작업명
+    const tdn=tr.insertCell();tdn.className='td-nm';
+    const pip=document.createElement('span');pip.style.cssText=`display:inline-block;width:7px;height:7px;border-radius:50%;background:${{AC[row.area]||'#94a3b8'}};margin-right:.25rem;flex-shrink:0`;
+    const sp=document.createElement('span');sp.textContent=row.n;
+    if(row.t==='p')sp.style.cssText='font-weight:700;font-size:.78rem';
+    else sp.style.cssText='font-size:.72rem;color:#334155';
+    tdn.append(pip,sp);
+    if(row.t==='t'){{
+      const bd=document.createElement('span');bd.className='badge '+SC[row.st];bd.textContent=SL[row.st];
+      bd.style.marginLeft='.25rem';tdn.appendChild(bd);
+    }}
+    // 담당
+    const tdow=tr.insertCell();tdow.className='td-ow';
+    if(row.owner){{const c=document.createElement('span');c.textContent=row.owner;c.style.cssText='font-size:.58rem;color:#64748b';tdow.appendChild(c);}}
+    // 주차 셀
+    for(let w=1;w<=TOTAL_WEEKS;w++){{
+      const td=tr.insertCell();td.style.cssText='width:52px;min-width:52px;padding:0;';
+      if(row.t!=='m'&&row.s<=w&&w<=row.e){{
+        const isS=row.s===w,isE=row.e===w;
+        const d=document.createElement('div');
+        d.style.cssText=`height:12px;margin:10px 0;background:${{BC[row.area]||'#64748b'}};opacity:${{row.t==='p'?0.3:0.85}};border-radius:${{isS&&isE?'4px':isS?'4px 0 0 4px':isE?'0 4px 4px 0':'0'}};${{isS?'margin-left:2px':''}};${{isE?'margin-right:2px':''}};height:${{row.t==='p'?'5px':'12px'}};margin-top:${{row.t==='p'?'13.5px':'10px'}}`;
+        td.appendChild(d);
+      }}
+    }}
+  }});
+  div.innerHTML='';div.appendChild(tbl);
+  // sticky top 계산
+  requestAnimationFrame(()=>{{
+    const row1=tbl.querySelector('thead tr');
+    const row1H=row1?Math.ceil(row1.getBoundingClientRect().height)||28:28;
+    tbl.querySelectorAll('.th-w').forEach(th=>th.style.top=row1H+'px');
+  }});
+}}
+</script>
+</body>
+</html>"""
 
 
 def _build_months_json(ps_str: str, total_weeks: int) -> str:
@@ -1080,17 +1537,42 @@ def main():
     ptype  = client.project_type()
     print(f"📡 JIRA [{PROJECT_KEY}] 데이터 수집 중... (유형: {ptype})")
 
-    D = build_d_array(client)
+    # 시작일 커스텀 필드 자동 탐색
+    start_field = client.discover_start_field()
+    if start_field not in JIRA_FIELDS:
+        JIRA_FIELDS.append(start_field)
+        START_DATE_CANDIDATES.insert(0, start_field)
+
+    # 전체 이슈 1회 fetch (최대 5000개)
+    all_issues = client.search(
+        f'project = "{PROJECT_KEY}" ORDER BY rank ASC, created ASC',
+        max_results=5000
+    )
+    print(f"  • 전체 이슈: {len(all_issues)}개")
+
+    # 일별 스냅샷 저장
+    snap_path = save_snapshot(all_issues)
+    print(f"📸 스냅샷 저장: {snap_path}")
+
+    # WBS D 배열 생성
+    D = build_d_array(all_issues, ptype)
 
     tasks = [r for r in D if r["t"] == "t"]
     done  = sum(1 for t in tasks if t["st"] == "done")
     print(f"✅ 수집 완료: Phase {sum(1 for r in D if r['t']=='p')}개 / Task {len(tasks)}개 (완료 {done}개)")
 
+    # docs/index.html 생성
     html = build_html(D)
     os.makedirs(os.path.dirname(OUTPUT_PATH) or ".", exist_ok=True)
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
         f.write(html)
     print(f"📄 생성: {OUTPUT_PATH}  ({len(html):,} bytes)")
+
+    # docs/history.html 생성
+    history_html = build_history_html()
+    with open(HISTORY_PATH, "w", encoding="utf-8") as f:
+        f.write(history_html)
+    print(f"📅 이력 뷰어: {HISTORY_PATH}  ({len(history_html):,} bytes)")
 
 
 if __name__ == "__main__":

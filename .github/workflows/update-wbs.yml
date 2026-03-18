@@ -72,12 +72,14 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/index.html
+          # index.html, history.html, 스냅샷 데이터 모두 스테이징
+          git add docs/index.html docs/history.html docs/data/
           if git diff --staged --quiet; then
             echo "✅ JIRA 데이터 변경 없음 — 커밋 생략"
           else
+            SNAP_DATE=$(date '+%Y-%m-%d')
             CHANGED=$(git diff --staged --stat | tail -1)
-            git commit -m "chore: WBS JIRA 동기화 $(date '+%Y-%m-%d %H:%M KST') [$CHANGED]"
+            git commit -m "chore: WBS JIRA 동기화 ${SNAP_DATE} [$CHANGED]"
             git push origin HEAD
-            echo "✅ HTML 업데이트 완료"
+            echo "✅ HTML + 스냅샷 업데이트 완료"
           fi
