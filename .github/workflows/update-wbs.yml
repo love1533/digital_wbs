@@ -3,14 +3,19 @@ name: JIRA WBS 자동 업데이트
 # ─── 실행 트리거 ───────────────────────────────────────────────────────────────
 on:
   schedule:
-    # ① 매시간 정각 (UTC 기준 → KST +9h)
-    - cron: "0 * * * *"
-    # ② 매일 오전 9시 KST (UTC 00:00)  ← 필요시 아래 주석 해제
-    # - cron: "0 0 * * *"
+    # 매일 오전 9시 KST (UTC 00:00)
+    - cron: "0 0 * * *"
+    # 매시간 정각 ← 필요시 아래 주석 해제
+    # - cron: "0 * * * *"
+
+  push:
+    branches: [main]
+    paths:
+      - "scripts/generate_wbs.py"   # 스크립트 변경 시 자동 재생성
 
   workflow_dispatch:          # 수동 실행 버튼
     inputs:
-      update_interval:
+      reason:
         description: "실행 이유 (선택)"
         required: false
         default: "수동 실행"
@@ -48,13 +53,17 @@ jobs:
       # 4. WBS HTML 생성 (JIRA → docs/index.html)
       - name: 🔄 WBS HTML 생성
         env:
-          JIRA_URL:          ${{ secrets.JIRA_URL }}
-          JIRA_EMAIL:        ${{ secrets.JIRA_EMAIL }}
-          JIRA_API_TOKEN:    ${{ secrets.JIRA_API_TOKEN }}
-          JIRA_PROJECT_KEY:  ${{ secrets.JIRA_PROJECT_KEY }}
-          WBS_PASSWORD:      ${{ secrets.WBS_PASSWORD }}
-          WBS_TITLE:         ${{ vars.WBS_TITLE }}          # optional: Actions Variables
-          WBS_OUTPUT:        docs/index.html
+          # ── 필수 Secrets ──────────────────────────────
+          JIRA_URL:            ${{ secrets.JIRA_URL }}
+          JIRA_EMAIL:          ${{ secrets.JIRA_EMAIL }}
+          JIRA_API_TOKEN:      ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_PROJECT_KEY:    ${{ secrets.JIRA_PROJECT_KEY }}
+          WBS_PASSWORD:        ${{ secrets.WBS_PASSWORD }}
+          # ── 선택 Variables (Settings → Variables) ────
+          WBS_TITLE:           ${{ vars.WBS_TITLE }}
+          PROJECT_START_DATE:  ${{ vars.PROJECT_START_DATE }}   # 예: 2026-03-23
+          TOTAL_WEEKS:         ${{ vars.TOTAL_WEEKS }}           # 예: 32
+          WBS_OUTPUT:          docs/index.html
         run: python scripts/generate_wbs.py
 
       # 5. 변경 있을 때만 커밋/푸시

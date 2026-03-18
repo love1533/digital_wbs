@@ -20,7 +20,7 @@ JIRA Cloud → WBS Gantt HTML Generator  (v3)
   TOTAL_WEEKS          총 주차 수  (기본: 32)
 """
 
-import os, sys, json, hashlib
+import os, sys, json, hashlib, re
 from datetime import datetime, timedelta
 
 try:
@@ -49,13 +49,38 @@ except ValueError:
 
 # 업무영역 감지 키워드
 AREA_KEYWORDS = {
-    "이지원": ["이지원", "ezwon", "document", "문서", "전자결재", "결재", "기안", "모바일"],
-    "사이버": ["사이버", "cyber", "security", "보안", "인증", "취약점", "iam", "방화벽"],
-    "콜센터": ["콜센터", "callcenter", "call", "cti", "ivr", "상담", "녹취"],
-    "인프라": ["인프라", "infra", "infrastructure", "server", "서버", "네트워크", "db", "배포", "형상관리"],
+    "이지원": [
+        "이지원", "ezwon", "document", "문서", "전자결재", "결재", "기안", "모바일",
+        "마이다스", "midas", "법인", "공동대표", "ocr", "챗봇", "chatbot",
+        "팩토리", "상품", "app고도화", "앱", "ai", "고도화",
+    ],
+    "사이버": [
+        "사이버", "cyber", "security", "보안", "인증", "취약점", "iam", "방화벽",
+        "사이버보증", "보증",
+    ],
+    "콜센터": [
+        "콜센터", "callcenter", "call", "cti", "ivr", "상담", "녹취",
+        "ars", "보이는ars",
+    ],
+    "인프라": [
+        "인프라", "infra", "infrastructure", "server", "서버", "네트워크", "db",
+        "배포", "형상관리", "소스코드", "응답시간", "자원사용률", "성능",
+    ],
 }
 
-# JIRA 가져올 필드 목록
+# 시작일 커스텀 필드 후보 (우선순위 순)
+START_DATE_CANDIDATES = [
+    "startdate",          # Work Management 표준
+    "customfield_10015",  # Software Start Date (일반)
+    "customfield_10016",  # 일부 인스턴스
+    "customfield_10032",  # BigGantt 흔한 필드
+    "customfield_10116",
+    "customfield_10133",
+    "customfield_10200",
+    "customfield_10300",
+]
+
+# JIRA 기본 필드 목록 (검색 시 사용)
 JIRA_FIELDS = [
     "summary", "status", "priority", "assignee", "duedate",
     "labels", "components", "subtasks", "parent",
@@ -156,16 +181,54 @@ class JiraClient:
         except Exception:
             return "business"
 
+    def discover_start_field(self) -> str:
+        """Jira 인스턴스에서 시작일 커스텀 필드 ID 자동 탐색"""
+        try:
+            fields = self._get("field")
+            for f in fields:
+                name   = (f.get("name") or "").lower()
+                fid    = f.get("id", "")
+                schema = (f.get("schema") or {}).get("type", "")
+                if schema == "date" and fid.startswith("customfield_"):
+                    if any(x in name for x in ["start", "begin", "시작", "착수", "from"]):
+                        print(f"  • 시작일 필드 발견: {fid} ({f.get('name')})")
+                        return fid
+        except Exception as e:
+            print(f"  ⚠ 필드 탐색 실패: {e}")
+        return "customfield_10015"  # 기본값
+
 
 # ── D-배열 항목 생성 ──────────────────────────────────────────────────────────
+_DATE_RE = re.compile(r'202[4-9]-\d{2}-\d{2}')
+
 def _extract_dates(fields: dict) -> tuple[int, int]:
-    """JIRA fields → (start_week, end_week)"""
-    start_raw = (
-        fields.get("startdate")
-        or fields.get("customfield_10015")
-        or fields.get("created", "")[:10]
-    )
-    end_raw   = fields.get("duedate") or ""
+    """JIRA fields → (start_week, end_week)
+    여러 커스텀 필드 후보를 순서대로 시도하고, 없으면 customfield_* 전체 스캔.
+    """
+    start_raw = None
+
+    # 1) 후보 필드 순서대로 확인
+    for key in START_DATE_CANDIDATES:
+        val = fields.get(key)
+        if val and isinstance(val, str) and _DATE_RE.match(val):
+            start_raw = val[:10]
+            break
+
+    # 2) 그래도 없으면 customfield_* 전체를 스캔해서 프로젝트 기간 내 날짜 찾기
+    if not start_raw:
+        for key in sorted(fields):
+            if not key.startswith("customfield_"):
+                continue
+            val = fields[key]
+            if val and isinstance(val, str) and _DATE_RE.match(val):
+                start_raw = val[:10]
+                break
+
+    # 3) 최후 수단: 이슈 생성일
+    if not start_raw:
+        start_raw = (fields.get("created") or "")[:10]
+
+    end_raw = fields.get("duedate") or ""
 
     sw = date_to_week(start_raw) or today_week() or 1
     ew = date_to_week(end_raw)   or sw
@@ -179,9 +242,15 @@ def make_d_task(issue: dict, wbs_id: str) -> dict:
     comps  = [c["name"] for c in (f.get("components") or [])]
     labels = f.get("labels") or []
     sw, ew = _extract_dates(f)
-    start_raw = (
-        f.get("startdate") or f.get("customfield_10015") or f.get("created", "")[:10]
-    )
+    # 시작일: 후보 필드 순서대로 탐색
+    start_raw = None
+    for key in START_DATE_CANDIDATES:
+        val = f.get(key)
+        if val and isinstance(val, str) and _DATE_RE.match(val):
+            start_raw = val[:10]
+            break
+    if not start_raw:
+        start_raw = (f.get("created") or "")[:10]
     end_raw = f.get("duedate") or ""
     return {
         "id":      wbs_id,
@@ -230,22 +299,32 @@ def build_d_software(client: JiraClient) -> list:
     epics = client.search(
         f'project = "{PROJECT_KEY}" AND issuetype = Epic ORDER BY rank ASC, created ASC'
     )
+    # Sub-task를 제외한 모든 비Epic 이슈 (Story, Task, Bug, 기타 포함)
     all_issues = client.search(
-        f'project = "{PROJECT_KEY}" AND issuetype not in (Epic, "Sub-task") '
+        f'project = "{PROJECT_KEY}" AND issuetype not in (Epic, Sub-task) '
         f'ORDER BY rank ASC, created ASC'
     )
-    print(f"  • 에픽: {len(epics)}개  이슈: {len(all_issues)}개")
+    print(f"  • 에픽: {len(epics)}개  이슈(Task/Story/기타): {len(all_issues)}개")
 
     epic_map: dict = {e["key"]: [] for e in epics}
     unassigned = []
     for iss in all_issues:
-        fld      = iss["fields"]
+        fld = iss["fields"]
+        # Classic: customfield_10014 (Epic Link)
         epic_key = fld.get("customfield_10014")
         if not epic_key:
+            # Next-gen / Team-managed: parent 필드로 Epic 참조
             parent = fld.get("parent") or {}
-            if (parent.get("fields") or {}).get("issuetype", {}).get("name") == "Epic":
+            parent_itype = (
+                (parent.get("fields") or {}).get("issuetype", {}).get("name", "")
+                or parent.get("typeName", "")
+            )
+            if "epic" in parent_itype.lower():
                 epic_key = parent.get("key")
-        (epic_map.get(epic_key, unassigned) if epic_key in epic_map else unassigned).append(iss)
+        if epic_key and epic_key in epic_map:
+            epic_map[epic_key].append(iss)
+        else:
+            unassigned.append(iss)
 
     D = []
     for i, epic in enumerate(epics):
@@ -308,6 +387,13 @@ def build_d_workmanagement(client: JiraClient) -> list:
 def build_d_array(client: JiraClient) -> list:
     ptype = client.project_type()
     print(f"  • 프로젝트 유형: {ptype}")
+
+    # 시작일 커스텀 필드 자동 탐색 → JIRA_FIELDS에 추가
+    start_field = client.discover_start_field()
+    if start_field not in JIRA_FIELDS:
+        JIRA_FIELDS.append(start_field)
+        START_DATE_CANDIDATES.insert(0, start_field)
+
     if ptype == "software":
         epics = client.search(f'project = "{PROJECT_KEY}" AND issuetype = Epic', max_results=1)
         if epics:
