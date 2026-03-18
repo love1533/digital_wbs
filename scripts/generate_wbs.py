@@ -476,14 +476,20 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f4f8;color:#1e293
 .th-nm{position:sticky;left:62px;z-index:15;background:#1e293b;color:#94a3b8;font-size:.59rem;padding:.4rem .65rem;width:230px;min-width:230px;border-color:#334155!important;text-align:left}
 .th-ow{position:sticky;left:292px;z-index:15;background:#1e293b;color:#94a3b8;font-size:.59rem;padding:.4rem .4rem;width:82px;min-width:82px;border-color:#334155!important;text-align:center}
 .th-mo{background:#334155;color:#e2e8f0;font-size:.7rem;padding:.36rem .35rem;text-align:center;border-color:#475569!important}
-.th-w{background:#f8fafc;color:#94a3b8;font-size:.55rem;padding:.26rem 0;text-align:center;width:28px;min-width:28px;max-width:28px;border-color:#e2e8f0!important}
-.th-w-now{background:#fef3c7!important;color:#92400e!important;font-weight:700}
-.th-w-past{background:#f9fafb!important;color:#cbd5e1!important}
+.th-w{background:#f8fafc;text-align:center;width:52px;min-width:52px;max-width:52px;border-color:#e2e8f0!important;cursor:default;padding:.14rem .1rem;vertical-align:top;line-height:1}
+.th-w-num{font-size:.63rem;font-weight:700;color:#475569;line-height:1.25}
+.th-w-dt{font-size:.47rem;color:#94a3b8;line-height:1.25;letter-spacing:-.01em;white-space:nowrap}
+.th-w-now .th-w-num{color:#b45309!important}
+.th-w-now .th-w-dt{color:#ca8a04!important}
+.th-w-past .th-w-num{color:#cbd5e1!important}
+.th-w-past .th-w-dt{color:#dde4ed!important}
+.th-w-now{background:#fef3c7!important}
+.th-w-past{background:#f9fafb!important}
 
 .td-id{position:sticky;left:0;z-index:10;background:#fff;border:1px solid #f1f5f9;border-right:1px solid #e2e8f0;padding:.2rem .4rem;font-size:.6rem;font-family:Consolas,monospace;color:#94a3b8;width:62px;min-width:62px;vertical-align:middle}
 .td-nm{position:sticky;left:62px;z-index:10;background:#fff;border:1px solid #f1f5f9;border-right:1px solid #e2e8f0;padding:.18rem .55rem;width:230px;min-width:230px;max-width:230px;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
 .td-ow{position:sticky;left:292px;z-index:10;background:#fff;border:1px solid #f1f5f9;border-right:2px solid #d1d5db;padding:.15rem .35rem;width:82px;min-width:82px;max-width:82px;vertical-align:middle;text-align:center}
-.td-w{border:1px solid #f1f5f9;width:28px;min-width:28px;max-width:28px;padding:0;vertical-align:middle;height:32px}
+.td-w{border:1px solid #f1f5f9;width:52px;min-width:52px;max-width:52px;padding:0;vertical-align:middle;height:34px}
 .td-w.col-now{background:#fefce8}
 .td-w.col-past{background:#fafafa}
 
@@ -769,9 +775,11 @@ function render(){
   for(let w=from;w<=to;w++){
     const d=weekStartDate(w);
     const th=document.createElement('th');
+    const de=new Date(d.getTime()+6*86400000);
+    const eSuffix=d.getMonth()===de.getMonth()?`${de.getDate()}`:`${de.getMonth()+1}/${de.getDate()}`;
     th.className='th-w'+(w===TODAY_W_INIT?' th-w-now':w<TODAY_W_INIT?' th-w-past':'');
-    th.textContent='W'+w;
-    th.title=`W${w}: ${fmtDate(d)} ~ ${fmtDate(new Date(d.getTime()+6*86400000))}`;
+    th.innerHTML=`<div class="th-w-num">W${w}</div><div class="th-w-dt">${fmtDate(d)}~${eSuffix}</div>`;
+    th.title=`W${w}: ${fmtDate(d)} ~ ${fmtDate(de)}`;
     hr2.appendChild(th);
   }
 
@@ -886,7 +894,7 @@ function goToday(){jumpToWeek(Math.max(1,TODAY_W_INIT||1));}
 function jumpToWeek(w){
   w=parseInt(w); if(!w) return;
   const{from}=getWRange();
-  document.getElementById('gscroll').scrollTo({left:Math.max(0,(w-from)*28-100),behavior:'smooth'});
+  document.getElementById('gscroll').scrollTo({left:Math.max(0,(w-from)*52-100),behavior:'smooth'});
   document.getElementById('weekSel').value=w;
 }
 
