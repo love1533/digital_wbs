@@ -145,6 +145,7 @@ tr.r-ms .td-ow{background:#fffbeb}
 
 /* 상태 배지 */
 .sbadge{font-size:.5rem;padding:.04rem .26rem;border-radius:99px;font-weight:700;margin-left:.25rem;vertical-align:middle;white-space:nowrap}
+.task-dts{font-size:.5rem;color:#94a3b8;margin-left:auto;padding-left:.3rem;flex-shrink:0;white-space:nowrap;letter-spacing:.01em}
 .sb-done{background:#dcfce7;color:#166534}
 .sb-doing{background:#dbeafe;color:#1d4ed8}
 .sb-review{background:#fef3c7;color:#92400e}
@@ -266,7 +267,7 @@ tr.r-ms .td-ow{background:#fffbeb}
   <div class="tsep"></div>
   <div class="week-range-bar">
     기간 필터:
-    <select id="wfrom" onchange="render()"></select>
+    <select id="wfrom" onchange="renderReset()"></select>
     ~
     <select id="wto" onchange="render()"></select>
     <button class="tbtn" onclick="resetWRange()" style="padding:.15rem .4rem;font-size:.62rem">전체보기</button>
@@ -607,6 +608,12 @@ function render(){
         bd.className='sbadge '+SC[row.st];
         bd.textContent=SL[row.st];
         rl.appendChild(bd);
+        const sd_d=weekStartDate(row.s);
+        const ed_d=new Date(weekStartDate(row.e).getTime()+6*86400000);
+        const dts=document.createElement('span');
+        dts.className='task-dts';
+        dts.textContent=`${fmtDate(sd_d)}~${fmtDate(ed_d)}`;
+        rl.appendChild(dts);
       }
     }
     tdn.appendChild(rl);
@@ -675,6 +682,7 @@ function setA(a,btn){
 function expAll(){D.filter(r=>r.t==='p').forEach(r=>pOpen[r.id]=true);render();}
 function colAll(){D.filter(r=>r.t==='p').forEach(r=>pOpen[r.id]=false);render();}
 
+function renderReset(){render();document.getElementById('gscroll').scrollLeft=0;}
 function goToday(){jumpToWeek(Math.max(1,TODAY_W||1));}
 function jumpToWeek(w){
   w=parseInt(w); if(!w) return;

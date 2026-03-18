@@ -179,6 +179,10 @@ def make_d_task(issue: dict, wbs_id: str) -> dict:
     comps  = [c["name"] for c in (f.get("components") or [])]
     labels = f.get("labels") or []
     sw, ew = _extract_dates(f)
+    start_raw = (
+        f.get("startdate") or f.get("customfield_10015") or f.get("created", "")[:10]
+    )
+    end_raw = f.get("duedate") or ""
     return {
         "id":      wbs_id,
         "jiraKey": issue["key"],
@@ -191,6 +195,8 @@ def make_d_task(issue: dict, wbs_id: str) -> dict:
         "e":       ew,
         "st":      map_status(f["status"]["name"]),
         "priority":(f.get("priority") or {}).get("name", "Medium"),
+        "sd":      (start_raw or "")[:10],
+        "ed":      (end_raw or "")[:10],
     }
 
 
@@ -485,6 +491,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f4f8;color:#1e293
 .th-w-past .th-w-dt{color:#dde4ed!important}
 .th-w-now{background:#fef3c7!important}
 .th-w-past{background:#f9fafb!important}
+.task-dts{font-size:.5rem;color:#94a3b8;margin-left:auto;padding-left:.3rem;flex-shrink:0;white-space:nowrap;letter-spacing:.01em}
 
 .td-id{position:sticky;left:0;z-index:10;background:#fff;border:1px solid #f1f5f9;border-right:1px solid #e2e8f0;padding:.2rem .4rem;font-size:.6rem;font-family:Consolas,monospace;color:#94a3b8;width:62px;min-width:62px;vertical-align:middle}
 .td-nm{position:sticky;left:62px;z-index:10;background:#fff;border:1px solid #f1f5f9;border-right:1px solid #e2e8f0;padding:.18rem .55rem;width:230px;min-width:230px;max-width:230px;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
@@ -634,7 +641,7 @@ tr.r-ms .td-id,tr.r-ms .td-nm,tr.r-ms .td-ow{background:#fffbeb}
   </div>
   <div class="tsep"></div>
   기간 필터:
-  <select id="wfrom" onchange="render()" style="padding:.2rem .5rem;border:1.5px solid #e2e8f0;border-radius:.28rem;font-size:.68rem;background:#fff;color:#1e293b;cursor:pointer"></select>
+  <select id="wfrom" onchange="renderReset()" style="padding:.2rem .5rem;border:1.5px solid #e2e8f0;border-radius:.28rem;font-size:.68rem;background:#fff;color:#1e293b;cursor:pointer"></select>
   ~
   <select id="wto"   onchange="render()" style="padding:.2rem .5rem;border:1.5px solid #e2e8f0;border-radius:.28rem;font-size:.68rem;background:#fff;color:#1e293b;cursor:pointer"></select>
   <button class="tbtn" onclick="resetWRange()" style="padding:.15rem .4rem;font-size:.62rem">전체보기</button>
@@ -844,6 +851,13 @@ function render(){
         const bd=document.createElement('span');
         bd.className='sbadge '+SC[row.st]; bd.textContent=SL[row.st];
         rl.appendChild(bd);
+        const sd_str=row.sd?row.sd.slice(5).replace('-','/'):`${fmtDate(weekStartDate(row.s))}`;
+        const ed_str=row.ed?row.ed.slice(5).replace('-','/'):`${fmtDate(new Date(weekStartDate(row.e).getTime()+6*86400000))}`;
+        const dts=document.createElement('span');
+        dts.className='task-dts';
+        dts.textContent=`${sd_str}~${ed_str}`;
+        dts.title=row.sd?`JIRA 날짜: ${row.sd} ~ ${row.ed||'미정'}`:'WBS 계산값';
+        rl.appendChild(dts);
       }
     }
     tdn.appendChild(rl);
@@ -876,7 +890,8 @@ function render(){
         if(isS){
           const sd=weekStartDate(row.s), ed=new Date(weekStartDate(row.e));
           ed.setDate(ed.getDate()+6);
-          td.title=`${row.id}: ${row.n}${row.jiraKey?' ['+row.jiraKey+']':''}\n담당: ${row.owner||'-'}\n기간: ${fmtDate(sd)} ~ ${fmtDate(ed)} (${row.e-row.s+1}주)\n영역: ${row.area} | 상태: ${SL[row.st]||''}`;
+          const jiraDate=row.sd?`\nJIRA 날짜: ${row.sd} ~ ${row.ed||'미정'}`:'';
+          td.title=`${row.id}: ${row.n}${row.jiraKey?' ['+row.jiraKey+']':''}\n담당: ${row.owner||'-'}${jiraDate}\nWBS: W${row.s}~W${row.e} (${fmtDate(sd)}~${fmtDate(ed)}, ${row.e-row.s+1}주)\n영역: ${row.area} | 상태: ${SL[row.st]||''}`;
           td.style.cursor='help';
         }
       }
@@ -890,6 +905,7 @@ function setF(f,btn){flt=f;['all','todo','doing','review','done'].forEach(x=>doc
 function setA(a,btn){curArea=a;['all','이지원','사이버','콜센터','인프라','PMO'].forEach(x=>document.getElementById('fa-'+x)?.classList.toggle('on',x===a));render();}
 function expAll(){D.filter(r=>r.t==='p').forEach(r=>pOpen[r.id]=true);render();}
 function colAll(){D.filter(r=>r.t==='p').forEach(r=>pOpen[r.id]=false);render();}
+function renderReset(){render();document.getElementById('gscroll').scrollLeft=0;}
 function goToday(){jumpToWeek(Math.max(1,TODAY_W_INIT||1));}
 function jumpToWeek(w){
   w=parseInt(w); if(!w) return;
