@@ -71,7 +71,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f4f8;color:#1e293
 .stat-l{font-size:.54rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-top:.15rem}
 
 /* ── 툴바 ── */
-.toolbar{padding:.45rem 1.4rem;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:.3rem;flex-wrap:wrap}
+.toolbar{padding:.45rem 1.4rem;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:.3rem;flex-wrap:wrap;position:sticky;z-index:190;box-shadow:0 2px 8px rgba(0,0,0,.06)}
 .tbtn{padding:.26rem .6rem;border:1.5px solid #e2e8f0;border-radius:.3rem;font-size:.69rem;font-weight:600;cursor:pointer;background:#fff;color:#64748b;transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:.22rem}
 .tbtn:hover{border-color:#2563eb;color:#2563eb;background:#eff6ff}
 .tbtn.on{background:#2563eb;border-color:#2563eb;color:#fff}
@@ -86,21 +86,21 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f4f8;color:#1e293
 .leg-sq{width:12px;height:8px;border-radius:2px;flex-shrink:0}
 
 /* ── 날짜 이동 ── */
-.date-nav{padding:.35rem 1.4rem;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;font-size:.7rem;color:#475569}
+.date-nav{padding:.35rem 1.4rem;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;font-size:.7rem;color:#475569;position:sticky;z-index:180}
 .week-jump{display:flex;align-items:center;gap:.3rem}
 .week-jump select{padding:.2rem .5rem;border:1.5px solid #e2e8f0;border-radius:.28rem;font-size:.68rem;background:#fff;color:#1e293b;cursor:pointer}
 
 /* ── 간트 테이블 ── */
-.gantt-scroll{overflow:auto;background:#fff;border-top:1px solid #e2e8f0}
+.gantt-scroll{overflow:auto;background:#fff;border-top:1px solid #e2e8f0;min-height:300px}
 .gtbl{border-collapse:collapse;table-layout:fixed;white-space:nowrap}
 
 /* 헤더 */
 .gtbl thead th{border:1px solid #e2e8f0;font-weight:600;user-select:none}
-.th-id{position:sticky;left:0;z-index:15;background:#1e293b;color:#94a3b8;font-size:.59rem;padding:.4rem .4rem;width:62px;min-width:62px;border-color:#334155!important;text-align:left}
-.th-nm{position:sticky;left:62px;z-index:15;background:#1e293b;color:#94a3b8;font-size:.59rem;padding:.4rem .65rem;width:230px;min-width:230px;border-color:#334155!important;text-align:left}
-.th-ow{position:sticky;left:292px;z-index:15;background:#1e293b;color:#94a3b8;font-size:.59rem;padding:.4rem .4rem;width:82px;min-width:82px;border-color:#334155!important;text-align:center}
-.th-mo{background:#334155;color:#e2e8f0;font-size:.7rem;padding:.36rem .35rem;text-align:center;border-color:#475569!important}
-.th-w{background:#f8fafc;text-align:center;width:52px;min-width:52px;max-width:52px;border-color:#e2e8f0!important;cursor:default;padding:.14rem .1rem;vertical-align:top;line-height:1}
+.th-id{position:sticky;left:0;top:0;z-index:25;background:#1e293b;color:#94a3b8;font-size:.59rem;padding:.4rem .4rem;width:62px;min-width:62px;border-color:#334155!important;text-align:left}
+.th-nm{position:sticky;left:62px;top:0;z-index:25;background:#1e293b;color:#94a3b8;font-size:.59rem;padding:.4rem .65rem;width:230px;min-width:230px;border-color:#334155!important;text-align:left}
+.th-ow{position:sticky;left:292px;top:0;z-index:25;background:#1e293b;color:#94a3b8;font-size:.59rem;padding:.4rem .4rem;width:82px;min-width:82px;border-color:#334155!important;text-align:center}
+.th-mo{background:#334155;color:#e2e8f0;font-size:.7rem;padding:.36rem .35rem;text-align:center;border-color:#475569!important;position:sticky;top:0;z-index:6}
+.th-w{background:#f8fafc;text-align:center;width:52px;min-width:52px;max-width:52px;border-color:#e2e8f0!important;cursor:default;padding:.14rem .1rem;vertical-align:top;line-height:1;position:sticky;z-index:5}
 .th-w-num{font-size:.63rem;font-weight:700;color:#475569;line-height:1.25}
 .th-w-dt{font-size:.47rem;color:#94a3b8;line-height:1.25;letter-spacing:-.01em;white-space:nowrap}
 .th-w-now .th-w-num{color:#b45309!important}
@@ -658,6 +658,7 @@ function render(){
       }
     }
   });
+  requestAnimationFrame(updateLayout);
 }
 
 // ═══ 컨트롤 ════════════════════════════════════════════════
@@ -683,6 +684,33 @@ function expAll(){D.filter(r=>r.t==='p').forEach(r=>pOpen[r.id]=true);render();}
 function colAll(){D.filter(r=>r.t==='p').forEach(r=>pOpen[r.id]=false);render();}
 
 function renderReset(){render();document.getElementById('gscroll').scrollLeft=0;}
+
+// ═══ 레이아웃 (sticky + 반응형) ════════════════════════════
+function updateLayout(){
+  const hdrEl=document.querySelector('.app-hdr');
+  const tbEl=document.querySelector('.toolbar');
+  const dnEl=document.querySelector('.date-nav');
+  const gs=document.getElementById('gscroll');
+  if(!hdrEl||!tbEl||!dnEl||!gs) return;
+  const hdrH=hdrEl.offsetHeight;
+  const tbH=tbEl.offsetHeight;
+  const dnH=dnEl.offsetHeight;
+  // toolbar / date-nav sticky top
+  tbEl.style.top=hdrH+'px';
+  dnEl.style.top=(hdrH+tbH)+'px';
+  // gantt-scroll 높이: 뷰포트 - (hdr+toolbar+datenav)
+  const total=hdrH+tbH+dnH;
+  gs.style.height='calc(100vh - '+total+'px)';
+  gs.style.minHeight='300px';
+  // 주차 헤더(row2) sticky top = row1 높이
+  const row1El=document.querySelector('.gtbl thead tr');
+  if(row1El){
+    const row1H=Math.ceil(row1El.getBoundingClientRect().height)||28;
+    document.querySelectorAll('.th-w').forEach(th=>th.style.top=row1H+'px');
+  }
+}
+window.addEventListener('resize',updateLayout);
+
 function goToday(){jumpToWeek(Math.max(1,TODAY_W||1));}
 function jumpToWeek(w){
   w=parseInt(w); if(!w) return;
