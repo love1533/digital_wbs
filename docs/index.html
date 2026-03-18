@@ -10,127 +10,153 @@
 body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f4f8;color:#1e293b;font-size:13px}
 
 /* ── 비밀번호 게이트 ── */
-#gate{position:fixed;inset:0;background:linear-gradient(135deg,#1e3a5f,#0f172a);display:flex;align-items:center;justify-content:center;z-index:9999}
-.gb{background:#fff;border-radius:16px;padding:2.8rem 3.2rem;width:400px;text-align:center;box-shadow:0 32px 64px rgba(0,0,0,.45)}
-.gb-ico{font-size:2.4rem;margin-bottom:.9rem}
-.gb-title{font-size:1.3rem;font-weight:700;margin-bottom:.3rem}
-.gb-sub{font-size:.8rem;color:#64748b;margin-bottom:1.8rem}
-.gb input{width:100%;padding:.78rem 1rem;border:2px solid #e2e8f0;border-radius:.55rem;font-size:.95rem;outline:none;transition:border .2s,box-shadow .2s;margin-bottom:.9rem;color:#1e293b}
-.gb input:focus{border-color:#2563eb;box-shadow:0 0 0 4px rgba(37,99,235,.12)}
-.gb button{width:100%;padding:.78rem;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border:none;border-radius:.55rem;font-size:.95rem;font-weight:600;cursor:pointer}
-.gb button:hover{opacity:.92}
-.gb-err{font-size:.74rem;color:#ef4444;margin-top:.6rem;min-height:1.1rem}
-.gb-hint{font-size:.67rem;color:#93c5fd;margin-top:.7rem}
+#gate{position:fixed;inset:0;background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 50%,#1e1b4b 100%);display:flex;align-items:center;justify-content:center;z-index:9999}
+.gb{background:#fff;border-radius:20px;padding:3rem 3.5rem;width:420px;text-align:center;box-shadow:0 40px 80px rgba(0,0,0,.5)}
+.gb-logo{display:flex;align-items:center;justify-content:center;gap:.5rem;margin-bottom:1.5rem}
+.gb-logo-icon{width:44px;height:44px;background:linear-gradient(135deg,#2563eb,#7c3aed);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.4rem}
+.gb-logo-text{font-size:1.1rem;font-weight:800;color:#1e293b}
+.gb-logo-sub{font-size:.65rem;color:#94a3b8;font-weight:500}
+.gb-title{font-size:1rem;font-weight:700;margin-bottom:.3rem;color:#1e293b}
+.gb-sub{font-size:.78rem;color:#94a3b8;margin-bottom:1.6rem}
+.gb input{width:100%;padding:.82rem 1rem;border:2px solid #e2e8f0;border-radius:.6rem;font-size:.95rem;outline:none;transition:all .2s;margin-bottom:.9rem;color:#1e293b;background:#f8fafc}
+.gb input:focus{border-color:#2563eb;box-shadow:0 0 0 4px rgba(37,99,235,.1);background:#fff}
+.gb button{width:100%;padding:.82rem;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border:none;border-radius:.6rem;font-size:.95rem;font-weight:700;cursor:pointer;letter-spacing:.03em;transition:all .2s}
+.gb button:hover{opacity:.92;transform:translateY(-1px);box-shadow:0 6px 20px rgba(37,99,235,.35)}
+.gb-err{font-size:.74rem;color:#ef4444;margin-top:.7rem;min-height:1.1rem}
+.gb-footer{font-size:.65rem;color:#94a3b8;margin-top:1rem;display:flex;align-items:center;justify-content:center;gap:.3rem}
 
-/* ── 레이아웃 ── */
+/* ── 메인 레이아웃 ── */
 #main{display:none}
-.app-hdr{background:#1e293b;color:#fff;padding:.75rem 1.4rem;display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;position:sticky;top:0;z-index:200;box-shadow:0 2px 10px rgba(0,0,0,.3)}
-.app-hdr h1{font-size:.97rem;font-weight:700;flex:1;min-width:0}
-.hbadge{font-size:.62rem;padding:.16rem .5rem;border-radius:99px;font-weight:600;white-space:nowrap}
-.hb-b{background:#1d4ed8;color:#bfdbfe}.hb-g{background:#166534;color:#bbf7d0}.hb-a{background:#92400e;color:#fde68a}
+.app-hdr{background:linear-gradient(135deg,#1e293b,#1e3a5f);color:#fff;padding:.75rem 1.4rem;display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;position:sticky;top:0;z-index:200;box-shadow:0 4px 16px rgba(0,0,0,.35)}
+.app-hdr h1{font-size:1rem;font-weight:800;flex:1;min-width:0;display:flex;align-items:center;gap:.5rem}
+.hbadge{font-size:.62rem;padding:.18rem .55rem;border-radius:99px;font-weight:700;white-space:nowrap}
+.hb-b{background:rgba(37,99,235,.35);color:#93c5fd;border:1px solid rgba(37,99,235,.4)}
+.hb-g{background:rgba(22,163,74,.3);color:#86efac;border:1px solid rgba(22,163,74,.4)}
+.hb-a{background:rgba(245,158,11,.25);color:#fde68a;border:1px solid rgba(245,158,11,.4)}
 .sync{font-size:.66rem;color:#94a3b8;display:flex;align-items:center;gap:.28rem;margin-left:auto;white-space:nowrap}
-.sdot{width:6px;height:6px;border-radius:50%;background:#4ade80;animation:blink 2s infinite;flex-shrink:0}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.sdot{width:7px;height:7px;border-radius:50%;background:#4ade80;animation:blink 2s infinite;flex-shrink:0}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
 
-/* ── 진척률 배너 ── */
-.prog-banner{background:linear-gradient(90deg,#1e293b,#1e3a5f);color:#fff;padding:.6rem 1.4rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
-.pb-main{display:flex;align-items:center;gap:.8rem;flex:1;min-width:0}
-.pb-pct{font-size:2rem;font-weight:900;color:#38bdf8;line-height:1;min-width:4rem}
-.pb-info{display:flex;flex-direction:column;gap:.15rem}
-.pb-label{font-size:.65rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em}
-.pb-bar-wrap{flex:1}
-.pb-bar{height:10px;background:rgba(255,255,255,.1);border-radius:5px;overflow:hidden;margin-bottom:.3rem}
-.pb-fill{height:100%;background:linear-gradient(90deg,#22c55e,#38bdf8);border-radius:5px;transition:width .6s ease}
-.pb-detail{font-size:.65rem;color:#64748b;display:flex;gap:.6rem}
-.pb-stat{display:flex;align-items:center;gap:.2rem}
+/* ── 전체 진척률 배너 ── */
+.prog-banner{background:linear-gradient(135deg,#1e293b,#1e3a5f,#1e1b4b);color:#fff;padding:.9rem 1.4rem;display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,.06)}
+.pb-main{display:flex;align-items:center;gap:1rem;flex:1;min-width:200px}
+.pb-pct{font-size:2.6rem;font-weight:900;color:#38bdf8;line-height:1;min-width:5rem;letter-spacing:-.04em}
+.pb-info{flex:1;display:flex;flex-direction:column;gap:.25rem}
+.pb-label{font-size:.62rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+.pb-bar{height:10px;background:rgba(255,255,255,.08);border-radius:5px;overflow:hidden;margin:.25rem 0}
+.pb-fill{height:100%;background:linear-gradient(90deg,#22c55e,#38bdf8,#6366f1);border-radius:5px;transition:width .8s cubic-bezier(.4,0,.2,1)}
+.pb-detail{font-size:.63rem;color:#64748b;display:flex;gap:.8rem}
+.pb-stat{display:flex;align-items:center;gap:.25rem}
 .pbs-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-.pb-phases{display:flex;gap:.5rem;flex-wrap:wrap}
-.ph-mini{display:flex;flex-direction:column;gap:.15rem;min-width:70px}
-.ph-mini-lbl{font-size:.58rem;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ph-mini-bar{height:4px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden}
-.ph-mini-fill{height:100%;border-radius:2px}
+
+/* ── 6 영역 진척 카드 ── */
+.area-cards{display:grid;grid-template-columns:repeat(6,1fr);gap:.6rem;padding:.75rem 1.4rem;background:#fff;border-bottom:2px solid #e2e8f0}
+@media(max-width:900px){.area-cards{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:500px){.area-cards{grid-template-columns:repeat(2,1fr)}}
+.ac{border-radius:12px;padding:.7rem .85rem;position:relative;overflow:hidden;cursor:pointer;transition:all .2s;border:2px solid transparent}
+.ac:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.12)}
+.ac.active{border-color:currentColor;box-shadow:0 0 0 3px rgba(37,99,235,.15)}
+.ac-label{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;opacity:.75;margin-bottom:.3rem}
+.ac-pct{font-size:1.5rem;font-weight:900;line-height:1;margin-bottom:.3rem}
+.ac-counts{font-size:.6rem;opacity:.7;margin-bottom:.4rem}
+.ac-bar{height:5px;background:rgba(0,0,0,.1);border-radius:3px;overflow:hidden}
+.ac-fill{height:100%;border-radius:3px;transition:width .8s ease}
 
 /* ── 통계 스트립 ── */
-.stats{display:grid;grid-template-columns:repeat(7,1fr);background:#fff;border-bottom:2px solid #e2e8f0}
+.stats{display:grid;grid-template-columns:repeat(7,1fr);background:#f8fafc;border-bottom:2px solid #e2e8f0}
 @media(max-width:700px){.stats{grid-template-columns:repeat(4,1fr)}}
-.stat{text-align:center;padding:.55rem .4rem;border-right:1px solid #f1f5f9}
+.stat{text-align:center;padding:.55rem .4rem;border-right:1px solid #e2e8f0}
 .stat:last-child{border:none}
 .stat-v{font-size:1.3rem;font-weight:800;line-height:1}
-.stat-l{font-size:.56rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-top:.15rem}
+.stat-l{font-size:.54rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-top:.15rem}
 
 /* ── 툴바 ── */
-.toolbar{padding:.5rem 1.4rem;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:.35rem;flex-wrap:wrap}
-.tbtn{padding:.28rem .62rem;border:1.5px solid #e2e8f0;border-radius:.32rem;font-size:.69rem;font-weight:500;cursor:pointer;background:#fff;color:#64748b;transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:.25rem}
+.toolbar{padding:.45rem 1.4rem;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:.3rem;flex-wrap:wrap}
+.tbtn{padding:.26rem .6rem;border:1.5px solid #e2e8f0;border-radius:.3rem;font-size:.69rem;font-weight:600;cursor:pointer;background:#fff;color:#64748b;transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:.22rem}
 .tbtn:hover{border-color:#2563eb;color:#2563eb;background:#eff6ff}
 .tbtn.on{background:#2563eb;border-color:#2563eb;color:#fff}
-.tbtn.accent{background:#fff;border-color:#10b981;color:#059669}
-.tbtn.accent:hover{background:#ecfdf5;border-color:#059669}
-.tbtn.excel{background:#fff;border-color:#166534;color:#166534}
+.tbtn.excel{background:#fff;border-color:#166534;color:#166534;font-weight:700}
 .tbtn.excel:hover{background:#f0fdf4}
-.tsep{width:1px;height:15px;background:#e2e8f0;margin:0 .08rem;flex-shrink:0}
-.legend{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
-.leg{display:flex;align-items:center;gap:.25rem;font-size:.62rem;color:#64748b}
+.tbtn.accent{border-color:#0ea5e9;color:#0284c7}
+.tbtn.accent:hover{background:#f0f9ff}
+.tsep{width:1px;height:18px;background:#e2e8f0;margin:0 .1rem;flex-shrink:0}
+.tb-group-label{font-size:.6rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;font-weight:600;margin-right:.1rem}
+.legend{display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;margin-left:auto}
+.leg{display:flex;align-items:center;gap:.22rem;font-size:.61rem;color:#64748b}
 .leg-sq{width:12px;height:8px;border-radius:2px;flex-shrink:0}
 
 /* ── 날짜 이동 ── */
-.date-nav{padding:.38rem 1.4rem;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;font-size:.7rem;color:#475569}
+.date-nav{padding:.35rem 1.4rem;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;font-size:.7rem;color:#475569}
 .week-jump{display:flex;align-items:center;gap:.3rem}
-.week-jump label{font-size:.68rem;color:#64748b}
-.week-jump select{padding:.2rem .4rem;border:1.5px solid #e2e8f0;border-radius:.28rem;font-size:.68rem;background:#fff;color:#1e293b;cursor:pointer}
+.week-jump select{padding:.2rem .5rem;border:1.5px solid #e2e8f0;border-radius:.28rem;font-size:.68rem;background:#fff;color:#1e293b;cursor:pointer}
 
-/* ── 간트 ── */
+/* ── 간트 테이블 ── */
 .gantt-scroll{overflow:auto;background:#fff;border-top:1px solid #e2e8f0}
 .gtbl{border-collapse:collapse;table-layout:fixed;white-space:nowrap}
 
 /* 헤더 */
 .gtbl thead th{border:1px solid #e2e8f0;font-weight:600;user-select:none}
-.th-id{position:sticky;left:0;z-index:15;background:#1e293b;color:#94a3b8;font-size:.61rem;padding:.4rem .45rem;width:68px;min-width:68px;border-color:#334155!important;text-align:left}
-.th-nm{position:sticky;left:68px;z-index:15;background:#1e293b;color:#94a3b8;font-size:.61rem;padding:.4rem .7rem;width:260px;min-width:260px;border-color:#334155!important;text-align:left}
+.th-id{position:sticky;left:0;z-index:15;background:#1e293b;color:#94a3b8;font-size:.59rem;padding:.4rem .4rem;width:62px;min-width:62px;border-color:#334155!important;text-align:left}
+.th-nm{position:sticky;left:62px;z-index:15;background:#1e293b;color:#94a3b8;font-size:.59rem;padding:.4rem .65rem;width:230px;min-width:230px;border-color:#334155!important;text-align:left}
+.th-ow{position:sticky;left:292px;z-index:15;background:#1e293b;color:#94a3b8;font-size:.59rem;padding:.4rem .4rem;width:82px;min-width:82px;border-color:#334155!important;text-align:center}
 .th-mo{background:#334155;color:#e2e8f0;font-size:.7rem;padding:.36rem .35rem;text-align:center;border-color:#475569!important}
-.th-w{background:#f8fafc;color:#94a3b8;font-size:.56rem;padding:.26rem 0;text-align:center;width:28px;min-width:28px;max-width:28px;border-color:#e2e8f0!important;cursor:default}
+.th-w{background:#f8fafc;color:#94a3b8;font-size:.55rem;padding:.26rem 0;text-align:center;width:28px;min-width:28px;max-width:28px;border-color:#e2e8f0!important;cursor:default}
 .th-w-now{background:#fef3c7!important;color:#92400e!important;font-weight:700}
 .th-w-past{background:#f9fafb!important;color:#cbd5e1!important}
 
-/* 바디 */
-.td-id{position:sticky;left:0;z-index:10;background:#fff;border:1px solid #f1f5f9;border-right:1px solid #e2e8f0;padding:.2rem .45rem;font-size:.61rem;font-family:Consolas,monospace;color:#94a3b8;width:68px;min-width:68px;vertical-align:middle}
-.td-nm{position:sticky;left:68px;z-index:10;background:#fff;border:1px solid #f1f5f9;border-right:2px solid #e2e8f0;padding:.2rem .65rem;width:260px;min-width:260px;max-width:260px;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
+/* 바디 셀 */
+.td-id{position:sticky;left:0;z-index:10;background:#fff;border:1px solid #f1f5f9;border-right:1px solid #e2e8f0;padding:.2rem .4rem;font-size:.6rem;font-family:Consolas,monospace;color:#94a3b8;width:62px;min-width:62px;vertical-align:middle}
+.td-nm{position:sticky;left:62px;z-index:10;background:#fff;border:1px solid #f1f5f9;border-right:1px solid #e2e8f0;padding:.18rem .55rem;width:230px;min-width:230px;max-width:230px;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
+.td-ow{position:sticky;left:292px;z-index:10;background:#fff;border:1px solid #f1f5f9;border-right:2px solid #d1d5db;padding:.15rem .35rem;width:82px;min-width:82px;max-width:82px;vertical-align:middle;text-align:center}
 .td-w{border:1px solid #f1f5f9;width:28px;min-width:28px;max-width:28px;padding:0;vertical-align:middle;height:32px}
 .td-w.col-now{background:#fefce8}
 .td-w.col-past{background:#fafafa}
 
-tr.r-phase .td-id{background:#f8fafc;border-right-color:#cbd5e1;font-weight:700;color:#475569}
-tr.r-phase .td-nm{background:#f8fafc;border-right-color:#cbd5e1}
-tr.r-phase .td-w{background:#fafafa}
+/* Phase 행 */
+tr.r-phase .td-id{background:#f1f5f9;border-right-color:#cbd5e1;font-weight:700;color:#475569}
+tr.r-phase .td-nm{background:#f1f5f9;border-right-color:#cbd5e1}
+tr.r-phase .td-ow{background:#f1f5f9;border-right-color:#cbd5e1}
+tr.r-phase .td-w{background:#f5f5f5}
+/* Milestone 행 */
 tr.r-ms .td-id{background:#fffbeb}
 tr.r-ms .td-nm{background:#fffbeb}
-tr.r-ms .td-w{background:#fefef5}
+tr.r-ms .td-ow{background:#fffbeb}
 
-.gtbl tbody tr:hover .td-id{background:#f0f9ff!important}
-.gtbl tbody tr:hover .td-nm{background:#f0f9ff!important}
-.gtbl tbody tr:hover .td-w{background:#f0f9ff!important}
+/* hover */
+.gtbl tbody tr:hover .td-id,.gtbl tbody tr:hover .td-nm,.gtbl tbody tr:hover .td-ow{background:#eff6ff!important}
 
-/* 바 */
-.bar{height:13px;margin:9.5px 0;background:#3b82f6;border-radius:0}
+/* 간트 바 */
+.bar{height:12px;margin:10px 0;border-radius:0}
 .bar-s{border-radius:4px 0 0 4px;margin-left:2px}
 .bar-e{border-radius:0 4px 4px 0;margin-right:2px}
-.bar-se{border-radius:4px;margin:9.5px 3px}
-.bph{height:6px;margin:13px 0;opacity:.28;border-radius:0}
+.bar-se{border-radius:4px;margin:10px 3px}
+.bph{height:5px;margin:13.5px 0;opacity:.25;border-radius:0}
 .bph.bar-s{border-radius:2px 0 0 2px;margin-left:1px}
 .bph.bar-e{border-radius:0 2px 2px 0;margin-right:1px}
-.bph.bar-se{border-radius:2px;margin:13px 1px}
-.bar-done{opacity:.45;background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.22) 0,rgba(255,255,255,.22) 3px,transparent 3px,transparent 7px)}
+.bph.bar-se{border-radius:2px;margin:13.5px 1px}
+.bar-done{opacity:.4;background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.25) 0,rgba(255,255,255,.25) 3px,transparent 3px,transparent 7px)}
 .ms-cell{text-align:center;line-height:32px;font-size:14px;color:#dc2626;font-weight:900;cursor:default}
 
 /* 상태 배지 */
-.sbadge{font-size:.53rem;padding:.05rem .28rem;border-radius:99px;font-weight:700;margin-left:.28rem;vertical-align:middle;white-space:nowrap}
-.sb-done{background:#dcfce7;color:#166534}.sb-doing{background:#dbeafe;color:#1d4ed8}
-.sb-review{background:#fef3c7;color:#92400e}.sb-todo{background:#f1f5f9;color:#94a3b8}
-.rl{display:flex;align-items:center;gap:.28rem;min-width:0}
+.sbadge{font-size:.5rem;padding:.04rem .26rem;border-radius:99px;font-weight:700;margin-left:.25rem;vertical-align:middle;white-space:nowrap}
+.sb-done{background:#dcfce7;color:#166534}
+.sb-doing{background:#dbeafe;color:#1d4ed8}
+.sb-review{background:#fef3c7;color:#92400e}
+.sb-todo{background:#f1f5f9;color:#94a3b8}
+
+/* 담당자 칩 */
+.owner-chip{display:inline-flex;align-items:center;gap:.18rem;font-size:.57rem;padding:.12rem .35rem;border-radius:99px;font-weight:600;white-space:nowrap;max-width:78px;overflow:hidden;text-overflow:ellipsis}
+
+.rl{display:flex;align-items:center;gap:.25rem;min-width:0}
 .rpip{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-.rtxt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.chv{font-size:.57rem;cursor:pointer;user-select:none;transition:transform .2s;color:#94a3b8;display:inline-block;flex-shrink:0;margin-right:1px}
+.rtxt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.chv{font-size:.55rem;cursor:pointer;user-select:none;transition:transform .2s;color:#94a3b8;display:inline-block;flex-shrink:0;margin-right:1px}
 .chv.o{transform:rotate(90deg)}
 .hidden{display:none!important}
+
+/* 날짜 필터 바 */
+.week-range-bar{display:flex;align-items:center;gap:.4rem;font-size:.68rem;color:#64748b}
+.week-range-bar input[type=range]{accent-color:#2563eb;width:90px}
 </style>
 </head>
 <body>
@@ -138,13 +164,19 @@ tr.r-ms .td-w{background:#fefef5}
 <!-- ══ 비밀번호 게이트 ══ -->
 <div id="gate">
   <div class="gb">
-    <div class="gb-ico">🔐</div>
-    <div class="gb-title">GCGF0323 프로젝트 WBS</div>
-    <div class="gb-sub">접근하려면 비밀번호를 입력하세요</div>
+    <div class="gb-logo">
+      <div class="gb-logo-icon">📋</div>
+      <div>
+        <div class="gb-logo-text">GCGF0323</div>
+        <div class="gb-logo-sub">프로젝트 WBS 관리 시스템</div>
+      </div>
+    </div>
+    <div class="gb-title">보안 로그인</div>
+    <div class="gb-sub">이 페이지는 프로젝트 팀원 전용입니다</div>
     <input type="password" id="pw" placeholder="비밀번호 입력" onkeydown="if(event.key==='Enter')auth()"/>
-    <button onclick="auth()">로그인</button>
+    <button onclick="auth()">입장하기 →</button>
     <div class="gb-err" id="gerr"></div>
-    <div class="gb-hint">🔄 JIRA 자동 동기화 · 최종: 2026-03-17</div>
+    <div class="gb-footer">🔄 JIRA 자동 동기화 · 최종: 2026-03-18</div>
   </div>
 </div>
 
@@ -156,25 +188,27 @@ tr.r-ms .td-w{background:#fefef5}
   <span class="hbadge hb-b">JIRA</span>
   <span class="hbadge hb-g" id="h-done">— 완료</span>
   <span class="hbadge hb-a" id="h-pct">—%</span>
-  <div class="sync"><span class="sdot"></span>2026-03-17</div>
+  <div class="sync"><span class="sdot"></span>2026-03-18 동기화</div>
 </header>
 
-<!-- 진척률 배너 -->
+<!-- 전체 진척률 배너 -->
 <div class="prog-banner">
   <div class="pb-main">
     <div class="pb-pct" id="pb-pct">0%</div>
-    <div class="pb-bar-wrap">
-      <div class="pb-label">전체 진척률</div>
+    <div class="pb-info">
+      <div class="pb-label">전체 진척률 (Task 기준)</div>
       <div class="pb-bar"><div class="pb-fill" id="pb-fill" style="width:0%"></div></div>
       <div class="pb-detail" id="pb-detail"></div>
     </div>
   </div>
-  <div class="pb-phases" id="pb-phases"></div>
 </div>
+
+<!-- 6 영역 진척 카드 -->
+<div class="area-cards" id="area-cards"></div>
 
 <!-- 통계 스트립 -->
 <div class="stats">
-  <div class="stat"><div class="stat-v" id="s-t" style="color:#2563eb">—</div><div class="stat-l">전체</div></div>
+  <div class="stat"><div class="stat-v" id="s-t" style="color:#2563eb">—</div><div class="stat-l">전체 Task</div></div>
   <div class="stat"><div class="stat-v" id="s-d" style="color:#16a34a">—</div><div class="stat-l">완료</div></div>
   <div class="stat"><div class="stat-v" id="s-g" style="color:#2563eb">—</div><div class="stat-l">진행중</div></div>
   <div class="stat"><div class="stat-v" id="s-r" style="color:#d97706">—</div><div class="stat-l">검토중</div></div>
@@ -185,17 +219,26 @@ tr.r-ms .td-w{background:#fefef5}
 
 <!-- 툴바 -->
 <div class="toolbar">
+  <span class="tb-group-label">상태</span>
   <button class="tbtn on" id="f-all"    onclick="setF('all',this)">전체</button>
   <button class="tbtn"    id="f-todo"   onclick="setF('todo',this)">대기</button>
   <button class="tbtn"    id="f-doing"  onclick="setF('doing',this)">진행중</button>
   <button class="tbtn"    id="f-review" onclick="setF('review',this)">검토중</button>
   <button class="tbtn"    id="f-done"   onclick="setF('done',this)">완료</button>
   <div class="tsep"></div>
+  <span class="tb-group-label">영역</span>
+  <button class="tbtn on" id="fa-all"      onclick="setA('all',this)">전체</button>
+  <button class="tbtn"    id="fa-이지원"   onclick="setA('이지원',this)">이지원</button>
+  <button class="tbtn"    id="fa-사이버"   onclick="setA('사이버',this)">사이버</button>
+  <button class="tbtn"    id="fa-콜센터"   onclick="setA('콜센터',this)">콜센터</button>
+  <button class="tbtn"    id="fa-인프라"   onclick="setA('인프라',this)">인프라</button>
+  <button class="tbtn"    id="fa-PMO"      onclick="setA('PMO',this)">PMO</button>
+  <div class="tsep"></div>
   <button class="tbtn" onclick="expAll()">전체 펼치기</button>
   <button class="tbtn" onclick="colAll()">전체 접기</button>
   <div class="tsep"></div>
   <button class="tbtn accent" onclick="goToday()">📅 이번 주</button>
-  <button class="tbtn excel" onclick="exportExcel()">📊 Excel 내보내기</button>
+  <button class="tbtn excel" onclick="exportExcel()">📊 Excel</button>
   <div class="legend">
     <div class="leg"><div class="leg-sq" style="background:#3b82f6"></div>이지원</div>
     <div class="leg"><div class="leg-sq" style="background:#7c3aed"></div>사이버</div>
@@ -212,9 +255,15 @@ tr.r-ms .td-w{background:#fefef5}
   <div class="tsep"></div>
   <div class="week-jump">
     <label>주차 이동:</label>
-    <select id="weekSel" onchange="jumpToWeek(this.value)">
-      <option value="">선택</option>
-    </select>
+    <select id="weekSel" onchange="jumpToWeek(this.value)"></select>
+  </div>
+  <div class="tsep"></div>
+  <div class="week-range-bar">
+    기간 필터:
+    <select id="wfrom" onchange="render()"></select>
+    ~
+    <select id="wto" onchange="render()"></select>
+    <button class="tbtn" onclick="resetWRange()" style="padding:.15rem .4rem;font-size:.62rem">전체보기</button>
   </div>
   <div class="tsep"></div>
   <span id="today-info" style="color:#059669;font-weight:600"></span>
@@ -255,123 +304,137 @@ function open_main(){
 if(sessionStorage.getItem('wbs')==='1') open_main();
 else document.getElementById('pw').focus();
 
-// ═══ 데이터 ════════════════════════════════════════════════
+// ═══ 상수 ══════════════════════════════════════════════════
 const TW = 32;
 const PROJECT_START = new Date('2026-03-23');
-
-// 오늘 기준 주차 계산
-const TODAY = new Date('2026-03-17');
+const TODAY = new Date('2026-03-18');
 const diffDays = Math.floor((TODAY - PROJECT_START) / 86400000);
-const TODAY_W  = diffDays >= 0 ? Math.floor(diffDays / 7) + 1 : 0; // 0 = 시작 전
+const TODAY_W  = diffDays >= 0 ? Math.floor(diffDays / 7) + 1 : 0;
 
-function weekStartDate(w){
-  const d = new Date(PROJECT_START);
-  d.setDate(d.getDate() + (w-1)*7);
-  return d;
-}
-function fmtDate(d){
-  return `${d.getMonth()+1}/${d.getDate()}`;
-}
+function weekStartDate(w){const d=new Date(PROJECT_START);d.setDate(d.getDate()+(w-1)*7);return d;}
+function fmtDate(d){return `${d.getMonth()+1}/${d.getDate()}`;}
+function fmtDateFull(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 
 const MONTHS=[
-  {n:'3월', s:1,  e:2},
-  {n:'4월', s:3,  e:6},
-  {n:'5월', s:7,  e:10},
-  {n:'6월', s:11, e:14},
-  {n:'7월', s:15, e:18},
-  {n:'8월', s:19, e:23},
-  {n:'9월', s:24, e:27},
-  {n:'10월',s:28, e:32},
+  {n:'3월',s:1, e:2},
+  {n:'4월',s:3, e:6},
+  {n:'5월',s:7, e:10},
+  {n:'6월',s:11,e:14},
+  {n:'7월',s:15,e:18},
+  {n:'8월',s:19,e:23},
+  {n:'9월',s:24,e:27},
+  {n:'10월',s:28,e:32},
 ];
 
-const AC ={이지원:'#3b82f6',사이버:'#7c3aed',콜센터:'#10b981',인프라:'#f59e0b',PMO:'#64748b'};
-const SL ={done:'완료',doing:'진행중',review:'검토중',todo:'대기'};
-const SC ={done:'sb-done',doing:'sb-doing',review:'sb-review',todo:'sb-todo'};
+const AC={이지원:'#3b82f6',사이버:'#7c3aed',콜센터:'#10b981',인프라:'#f59e0b',PMO:'#64748b'};
+const ACbg={이지원:'#eff6ff',사이버:'#f5f3ff',콜센터:'#ecfdf5',인프라:'#fffbeb',PMO:'#f8fafc'};
+const ACtext={이지원:'#1d4ed8',사이버:'#6d28d9',콜센터:'#065f46',인프라:'#92400e',PMO:'#475569'};
+const SL={done:'완료',doing:'진행중',review:'검토중',todo:'대기'};
+const SC={done:'sb-done',doing:'sb-doing',review:'sb-review',todo:'sb-todo'};
 
+// ═══ 데이터 (담당자 포함) ════════════════════════════════════
+// t: p=phase, t=task, m=milestone
+// owner: 담당자/담당팀
 const D=[
   // ─ P1 착수 ──────────────────────────────────────────────
-  {id:'P1',   n:'착수 단계',                t:'p',area:'PMO',   s:1, e:2,  st:'done'},
-  {id:'1.1.1',n:'계약 체결 및 착수신고',    t:'t',area:'PMO',   s:1, e:1,  st:'done'},
-  {id:'1.1.2',n:'프로젝트 계획서(PMP) 작성',t:'t',area:'PMO',   s:1, e:2,  st:'done'},
-  {id:'1.1.3',n:'팀 구성 및 역할 배정',     t:'t',area:'PMO',   s:1, e:1,  st:'done'},
-  {id:'1.1.4',n:'개발환경·형상관리 구성',   t:'t',area:'인프라', s:1, e:2,  st:'doing'},
-  {id:'M1',   n:'착수보고',                  t:'m',area:'PMO',   s:2, e:2,  st:'done'},
+  {id:'P1',    n:'착수 단계',                     t:'p',area:'PMO',   owner:'PM팀',     s:1,  e:2,  st:'done'},
+  {id:'1.1.1', n:'계약 체결 및 착수신고',          t:'t',area:'PMO',   owner:'박PM',     s:1,  e:1,  st:'done'},
+  {id:'1.1.2', n:'프로젝트 계획서(PMP) 작성',      t:'t',area:'PMO',   owner:'박PM',     s:1,  e:2,  st:'done'},
+  {id:'1.1.3', n:'팀 구성 및 역할 배정',           t:'t',area:'PMO',   owner:'박PM',     s:1,  e:1,  st:'done'},
+  {id:'1.1.4', n:'개발환경·형상관리 구성',          t:'t',area:'인프라',owner:'이인프라', s:1,  e:2,  st:'doing'},
+  {id:'M1',    n:'착수보고',                       t:'m',area:'PMO',   owner:'박PM',     s:2,  e:2,  st:'done'},
 
   // ─ P2 분석 ──────────────────────────────────────────────
-  {id:'P2',   n:'분석 단계',                 t:'p',area:'PMO',   s:2, e:8,  st:'doing'},
-  {id:'1.2.1',n:'AS-IS 시스템 현황 분석',   t:'t',area:'PMO',   s:2, e:4,  st:'doing'},
-  {id:'1.2.2',n:'이지원 업무 요구사항 분석', t:'t',area:'이지원', s:3, e:5,  st:'doing'},
-  {id:'1.2.3',n:'사이버보안 현황 진단',      t:'t',area:'사이버', s:3, e:5,  st:'todo'},
-  {id:'1.2.4',n:'콜센터 업무 분석',          t:'t',area:'콜센터', s:3, e:5,  st:'todo'},
-  {id:'1.2.5',n:'공통 인프라 현황 분석',     t:'t',area:'인프라', s:3, e:5,  st:'todo'},
-  {id:'1.2.6',n:'데이터 현황 및 마이그레이션 분석',t:'t',area:'이지원',s:4,e:6,st:'todo'},
-  {id:'1.2.7',n:'요구사항 정의서(SRS) 작성', t:'t',area:'PMO',   s:5, e:8,  st:'todo'},
-  {id:'1.2.8',n:'UI/UX 사용성 분석',         t:'t',area:'이지원', s:5, e:7,  st:'todo'},
-  {id:'M2',   n:'분석단계 감리 (1단계)',      t:'m',area:'PMO',   s:8, e:8,  st:'todo'},
+  {id:'P2',    n:'분석 단계',                      t:'p',area:'PMO',   owner:'PM팀',     s:2,  e:8,  st:'doing'},
+  {id:'1.2.1', n:'AS-IS 시스템 현황 분석',         t:'t',area:'PMO',   owner:'박PM',     s:2,  e:4,  st:'doing'},
+  {id:'1.2.2', n:'이지원 업무 요구사항 분석',      t:'t',area:'이지원',owner:'김이지원', s:3,  e:5,  st:'doing'},
+  {id:'1.2.3', n:'사이버보안 현황 진단',           t:'t',area:'사이버',owner:'최보안',   s:3,  e:5,  st:'todo'},
+  {id:'1.2.4', n:'콜센터 업무 분석',               t:'t',area:'콜센터',owner:'정콜센터', s:3,  e:5,  st:'todo'},
+  {id:'1.2.5', n:'공통 인프라 현황 분석',          t:'t',area:'인프라',owner:'이인프라', s:3,  e:5,  st:'todo'},
+  {id:'1.2.6', n:'데이터 현황 및 마이그레이션 분석',t:'t',area:'이지원',owner:'김이지원',s:4,  e:6,  st:'todo'},
+  {id:'1.2.7', n:'요구사항 정의서(SRS) 작성',     t:'t',area:'PMO',   owner:'박PM',     s:5,  e:8,  st:'todo'},
+  {id:'1.2.8', n:'UI/UX 사용성 분석',             t:'t',area:'이지원',owner:'이UX',     s:5,  e:7,  st:'todo'},
+  {id:'M2',    n:'분석단계 감리 (1단계)',           t:'m',area:'PMO',   owner:'박PM',     s:8,  e:8,  st:'todo'},
 
   // ─ P3 설계 ──────────────────────────────────────────────
-  {id:'P3',   n:'설계 단계',                 t:'p',area:'PMO',   s:8, e:14, st:'todo'},
-  {id:'1.3.1',n:'시스템 아키텍처 설계',      t:'t',area:'인프라', s:8, e:10, st:'todo'},
-  {id:'1.3.2',n:'이지원 상세 설계',           t:'t',area:'이지원', s:9, e:13, st:'todo'},
-  {id:'1.3.3',n:'UI/UX 디자인 시안',         t:'t',area:'이지원', s:9, e:12, st:'todo'},
-  {id:'1.3.4',n:'사이버보안 설계',            t:'t',area:'사이버', s:9, e:12, st:'todo'},
-  {id:'1.3.5',n:'콜센터 시스템 설계',         t:'t',area:'콜센터', s:9, e:12, st:'todo'},
-  {id:'1.3.6',n:'공통 인프라 설계',           t:'t',area:'인프라', s:9, e:11, st:'todo'},
-  {id:'1.3.7',n:'인터페이스 설계 (I/F)',      t:'t',area:'PMO',  s:10, e:13, st:'todo'},
-  {id:'1.3.8',n:'데이터 마이그레이션 설계',   t:'t',area:'이지원',s:11, e:13, st:'todo'},
-  {id:'1.3.9',n:'테스트 계획서 작성',          t:'t',area:'PMO',  s:12, e:14, st:'todo'},
-  {id:'M3',   n:'설계단계 감리 (2단계)',       t:'m',area:'PMO',  s:14, e:14, st:'todo'},
+  {id:'P3',    n:'설계 단계',                      t:'p',area:'PMO',   owner:'PM팀',     s:8,  e:14, st:'todo'},
+  {id:'1.3.1', n:'시스템 아키텍처 설계',           t:'t',area:'인프라',owner:'이인프라', s:8,  e:10, st:'todo'},
+  {id:'1.3.2', n:'이지원 상세 설계',               t:'t',area:'이지원',owner:'김이지원', s:9,  e:13, st:'todo'},
+  {id:'1.3.3', n:'UI/UX 디자인 시안',             t:'t',area:'이지원',owner:'이UX',     s:9,  e:12, st:'todo'},
+  {id:'1.3.4', n:'사이버보안 설계',               t:'t',area:'사이버',owner:'최보안',   s:9,  e:12, st:'todo'},
+  {id:'1.3.5', n:'콜센터 시스템 설계',             t:'t',area:'콜센터',owner:'정콜센터', s:9,  e:12, st:'todo'},
+  {id:'1.3.6', n:'공통 인프라 설계',               t:'t',area:'인프라',owner:'이인프라', s:9,  e:11, st:'todo'},
+  {id:'1.3.7', n:'인터페이스 설계 (I/F)',          t:'t',area:'PMO',   owner:'박PM',     s:10, e:13, st:'todo'},
+  {id:'1.3.8', n:'데이터 마이그레이션 설계',       t:'t',area:'이지원',owner:'김이지원', s:11, e:13, st:'todo'},
+  {id:'1.3.9', n:'테스트 계획서 작성',             t:'t',area:'PMO',   owner:'박PM',     s:12, e:14, st:'todo'},
+  {id:'M3',    n:'설계단계 감리 (2단계)',           t:'m',area:'PMO',   owner:'박PM',     s:14, e:14, st:'todo'},
 
   // ─ P4 구현 ──────────────────────────────────────────────
-  {id:'P4',    n:'구현 단계',                 t:'p',area:'PMO',  s:14, e:23, st:'todo'},
-  {id:'1.4.1', n:'공통 인프라 구축',           t:'t',area:'인프라',s:14, e:17, st:'todo'},
-  {id:'1.4.2', n:'이지원 — 전자결재 개발',     t:'t',area:'이지원',s:14, e:20, st:'todo'},
-  {id:'1.4.3', n:'이지원 — 문서관리 개발',     t:'t',area:'이지원',s:15, e:21, st:'todo'},
-  {id:'1.4.4', n:'이지원 — 모바일 결재',       t:'t',area:'이지원',s:17, e:21, st:'todo'},
-  {id:'1.4.5', n:'사이버보안 구현',             t:'t',area:'사이버',s:14, e:20, st:'todo'},
-  {id:'1.4.6', n:'콜센터 시스템 구현',          t:'t',area:'콜센터',s:14, e:21, st:'todo'},
-  {id:'1.4.7', n:'외부 I/F 개발',              t:'t',area:'이지원',s:16, e:21, st:'todo'},
-  {id:'1.4.8', n:'데이터 마이그레이션 개발',    t:'t',area:'이지원',s:17, e:22, st:'todo'},
-  {id:'1.4.9', n:'UI/UX 퍼블리싱 적용',        t:'t',area:'이지원',s:15, e:21, st:'todo'},
-  {id:'1.4.10',n:'단위 테스트',                 t:'t',area:'PMO',  s:19, e:23, st:'todo'},
+  {id:'P4',    n:'구현 단계',                      t:'p',area:'PMO',   owner:'개발팀',   s:14, e:23, st:'todo'},
+  {id:'1.4.1', n:'공통 인프라 구축',               t:'t',area:'인프라',owner:'이인프라', s:14, e:17, st:'todo'},
+  {id:'1.4.2', n:'이지원 — 전자결재 개발',         t:'t',area:'이지원',owner:'김이지원', s:14, e:20, st:'todo'},
+  {id:'1.4.3', n:'이지원 — 문서관리 개발',         t:'t',area:'이지원',owner:'김이지원', s:15, e:21, st:'todo'},
+  {id:'1.4.4', n:'이지원 — 모바일 결재',           t:'t',area:'이지원',owner:'이UX',     s:17, e:21, st:'todo'},
+  {id:'1.4.5', n:'사이버보안 구현',               t:'t',area:'사이버',owner:'최보안',   s:14, e:20, st:'todo'},
+  {id:'1.4.6', n:'콜센터 시스템 구현',             t:'t',area:'콜센터',owner:'정콜센터', s:14, e:21, st:'todo'},
+  {id:'1.4.7', n:'외부 I/F 개발',                 t:'t',area:'이지원',owner:'김이지원', s:16, e:21, st:'todo'},
+  {id:'1.4.8', n:'데이터 마이그레이션 개발',       t:'t',area:'이지원',owner:'김이지원', s:17, e:22, st:'todo'},
+  {id:'1.4.9', n:'UI/UX 퍼블리싱 적용',           t:'t',area:'이지원',owner:'이UX',     s:15, e:21, st:'todo'},
+  {id:'1.4.10',n:'단위 테스트',                   t:'t',area:'PMO',   owner:'박PM',     s:19, e:23, st:'todo'},
 
   // ─ P5 테스트 ────────────────────────────────────────────
-  {id:'P5',   n:'테스트 단계',                  t:'p',area:'PMO',  s:23, e:27, st:'todo'},
-  {id:'1.5.1',n:'통합 테스트',                  t:'t',area:'PMO',  s:23, e:25, st:'todo'},
-  {id:'1.5.2',n:'성능 테스트',                  t:'t',area:'인프라',s:24, e:25, st:'todo'},
-  {id:'1.5.3',n:'보안 취약점 점검',              t:'t',area:'사이버',s:24, e:25, st:'todo'},
-  {id:'1.5.4',n:'사용자 인수 테스트 (UAT)',      t:'t',area:'PMO',  s:25, e:26, st:'todo'},
-  {id:'1.5.5',n:'데이터 마이그레이션 시험이관',  t:'t',area:'이지원',s:25, e:26, st:'todo'},
-  {id:'M4',   n:'구현단계 감리 (3단계)',          t:'m',area:'PMO',  s:26, e:26, st:'todo'},
+  {id:'P5',    n:'테스트 단계',                    t:'p',area:'PMO',   owner:'QA팀',     s:23, e:27, st:'todo'},
+  {id:'1.5.1', n:'통합 테스트',                   t:'t',area:'PMO',   owner:'박PM',     s:23, e:25, st:'todo'},
+  {id:'1.5.2', n:'성능 테스트',                   t:'t',area:'인프라',owner:'이인프라', s:24, e:25, st:'todo'},
+  {id:'1.5.3', n:'보안 취약점 점검',               t:'t',area:'사이버',owner:'최보안',   s:24, e:25, st:'todo'},
+  {id:'1.5.4', n:'사용자 인수 테스트 (UAT)',       t:'t',area:'PMO',   owner:'박PM',     s:25, e:26, st:'todo'},
+  {id:'1.5.5', n:'데이터 마이그레이션 시험이관',   t:'t',area:'이지원',owner:'김이지원', s:25, e:26, st:'todo'},
+  {id:'M4',    n:'구현단계 감리 (3단계)',           t:'m',area:'PMO',   owner:'박PM',     s:26, e:26, st:'todo'},
 
   // ─ P6 완료 ──────────────────────────────────────────────
-  {id:'P6',   n:'안정화 및 완료',               t:'p',area:'PMO',  s:27, e:32, st:'todo'},
-  {id:'1.6.1',n:'운영 환경 최종 구성',           t:'t',area:'인프라',s:27, e:27, st:'todo'},
-  {id:'1.6.2',n:'데이터 본이관',                 t:'t',area:'이지원',s:27, e:27, st:'todo'},
-  {id:'M5',   n:'시스템 오픈 (Go-Live)',          t:'m',area:'PMO',  s:27, e:27, st:'todo'},
-  {id:'1.6.3',n:'사용자 교육',                   t:'t',area:'PMO',  s:27, e:29, st:'todo'},
-  {id:'1.6.4',n:'운영 매뉴얼 작성',              t:'t',area:'PMO',  s:27, e:29, st:'todo'},
-  {id:'1.6.5',n:'안정화 운영 지원 (4주)',         t:'t',area:'PMO',  s:27, e:32, st:'todo'},
-  {id:'1.6.6',n:'최종 산출물 정리',              t:'t',area:'PMO',  s:29, e:31, st:'todo'},
-  {id:'M6',   n:'완료보고',                       t:'m',area:'PMO',  s:32, e:32, st:'todo'},
+  {id:'P6',    n:'안정화 및 완료',                 t:'p',area:'PMO',   owner:'PM팀',     s:27, e:32, st:'todo'},
+  {id:'1.6.1', n:'운영 환경 최종 구성',            t:'t',area:'인프라',owner:'이인프라', s:27, e:27, st:'todo'},
+  {id:'1.6.2', n:'데이터 본이관',                 t:'t',area:'이지원',owner:'김이지원', s:27, e:27, st:'todo'},
+  {id:'M5',    n:'시스템 오픈 (Go-Live)',           t:'m',area:'PMO',   owner:'박PM',     s:27, e:27, st:'todo'},
+  {id:'1.6.3', n:'사용자 교육',                   t:'t',area:'PMO',   owner:'박PM',     s:27, e:29, st:'todo'},
+  {id:'1.6.4', n:'운영 매뉴얼 작성',               t:'t',area:'PMO',   owner:'박PM',     s:27, e:29, st:'todo'},
+  {id:'1.6.5', n:'안정화 운영 지원 (4주)',         t:'t',area:'PMO',   owner:'PM팀',     s:27, e:32, st:'todo'},
+  {id:'1.6.6', n:'최종 산출물 정리',               t:'t',area:'PMO',   owner:'박PM',     s:29, e:31, st:'todo'},
+  {id:'M6',    n:'완료보고',                       t:'m',area:'PMO',   owner:'박PM',     s:32, e:32, st:'todo'},
 ];
 
-// ═══ 주차 선택 초기화 ══════════════════════════════════════
+// ═══ 색상 유틸 ═════════════════════════════════════════════
+function ownerColor(area){
+  const map={이지원:'#dbeafe',사이버:'#ede9fe',콜센터:'#d1fae5',인프라:'#fef3c7',PMO:'#f1f5f9'};
+  return map[area]||'#f1f5f9';
+}
+function ownerTextColor(area){
+  const map={이지원:'#1d4ed8',사이버:'#6d28d9',콜센터:'#065f46',인프라:'#b45309',PMO:'#475569'};
+  return map[area]||'#475569';
+}
+
+// ═══ 주차 선택 초기화 ═══════════════════════════════════════
 function initWeekSel(){
   const sel=document.getElementById('weekSel');
+  const wfrom=document.getElementById('wfrom');
+  const wto=document.getElementById('wto');
+  sel.innerHTML='<option value="">주차 선택</option>';
+  wfrom.innerHTML='<option value="1">W1 (3/23~)</option>';
+  wto.innerHTML='';
   MONTHS.forEach(m=>{
     for(let w=m.s;w<=m.e;w++){
       const d=weekStartDate(w);
+      const txt=`W${w} — ${m.n} ${fmtDate(d)}`;
       const opt=document.createElement('option');
-      opt.value=w;
-      opt.textContent=`W${w} — 2026년 ${m.n} ${fmtDate(d)}`;
-      sel.appendChild(opt);
+      opt.value=w; opt.textContent=txt; sel.appendChild(opt);
+      if(w>1){const o2=document.createElement('option');o2.value=w;o2.textContent=`W${w} (${fmtDate(d)}~)`;wfrom.appendChild(o2);}
+      const o3=document.createElement('option');o3.value=w;o3.textContent=`W${w} (~${fmtDate(new Date(d.getTime()+6*86400000))})`;wto.appendChild(o3);
     }
   });
-  // 오늘 정보 표시
+  document.getElementById('wto').value=TW;
   const ti=document.getElementById('today-info');
-  if(TODAY_W>=1){
-    ti.textContent=`🗓 현재: W${TODAY_W} (${fmtDate(TODAY)})`;
+  if(TODAY_W>=1&&TODAY_W<=TW){
+    ti.textContent=`🗓 현재: W${TODAY_W} (${fmtDate(TODAY)}) — 프로젝트 ${TODAY_W}주차`;
   } else {
     ti.textContent=`🗓 프로젝트 시작까지 D-${-diffDays}일`;
     ti.style.color='#7c3aed';
@@ -381,11 +444,10 @@ function initWeekSel(){
 // ═══ 통계 계산 ═════════════════════════════════════════════
 function calcStats(){
   const ts=D.filter(r=>r.t==='t');
-  const tot=ts.length;
-  const dn =ts.filter(x=>x.st==='done').length;
-  const dg =ts.filter(x=>x.st==='doing').length;
-  const rv =ts.filter(x=>x.st==='review').length;
-  const td =ts.filter(x=>x.st==='todo').length;
+  const tot=ts.length, dn=ts.filter(x=>x.st==='done').length,
+        dg=ts.filter(x=>x.st==='doing').length,
+        rv=ts.filter(x=>x.st==='review').length,
+        td=ts.filter(x=>x.st==='todo').length;
   const pct=tot?Math.round(dn/tot*100):0;
 
   document.getElementById('s-t').textContent=tot;
@@ -397,56 +459,78 @@ function calcStats(){
   document.getElementById('pb-fill').style.width=pct+'%';
   document.getElementById('h-done').textContent=dn+'/'+tot+' 완료';
   document.getElementById('h-pct').textContent=pct+'%';
-
   document.getElementById('pb-detail').innerHTML=
     `<span class="pb-stat"><span class="pbs-dot" style="background:#22c55e"></span>완료 ${dn}</span>`+
     `<span class="pb-stat"><span class="pbs-dot" style="background:#38bdf8"></span>진행 ${dg}</span>`+
     `<span class="pb-stat"><span class="pbs-dot" style="background:#fbbf24"></span>검토 ${rv}</span>`+
     `<span class="pb-stat"><span class="pbs-dot" style="background:#e2e8f0"></span>대기 ${td}</span>`;
 
-  // Phase별 미니 진척바
-  const phases=D.filter(r=>r.t==='p');
-  const phHtml=phases.map(ph=>{
-    let cp=null, inPhase=false;
-    const kids=[];
-    D.forEach(r=>{
-      if(r.t==='p'){inPhase=(r.id===ph.id);cp=r.id;}
-      if(r.t==='t'&&inPhase) kids.push(r);
-    });
-    const kdn=kids.filter(k=>k.st==='done').length;
-    const pp=kids.length?Math.round(kdn/kids.length*100):0;
-    const c=AC[ph.area]||'#64748b';
-    return `<div class="ph-mini">
-      <div class="ph-mini-lbl" title="${ph.n}">${ph.id} ${ph.n.replace('단계','')}</div>
-      <div class="ph-mini-bar"><div class="ph-mini-fill" style="width:${pp}%;background:${c}"></div></div>
-    </div>`;
-  }).join('');
-  document.getElementById('pb-phases').innerHTML=phHtml;
+  // 6영역 카드
+  const AREAS=['이지원','사이버','콜센터','인프라','PMO'];
+  const areaLabels={이지원:'이지원 시스템',사이버:'사이버보안',콜센터:'콜센터',인프라:'공통 인프라',PMO:'PMO'};
+  const cardsEl=document.getElementById('area-cards');
+  cardsEl.innerHTML='';
+  AREAS.forEach(area=>{
+    const atasks=ts.filter(r=>r.area===area);
+    const adn=atasks.filter(r=>r.st==='done').length;
+    const adg=atasks.filter(r=>r.st==='doing').length;
+    const ap=atasks.length?Math.round(adn/atasks.length*100):0;
+    const col=AC[area]||'#64748b';
+    const bg=ACbg[area]||'#f8fafc';
+    const tc=ACtext[area]||'#475569';
+    const card=document.createElement('div');
+    card.className='ac'+(curArea===area?' active':'');
+    card.style.cssText=`background:${bg};color:${tc}`;
+    card.onclick=()=>setA(curArea===area?'all':area, null);
+    card.innerHTML=`
+      <div class="ac-label">${areaLabels[area]||area}</div>
+      <div class="ac-pct" style="color:${col}">${ap}%</div>
+      <div class="ac-counts">${adn}/${atasks.length} 완료 · 진행 ${adg}</div>
+      <div class="ac-bar"><div class="ac-fill" style="width:${ap}%;background:${col}"></div></div>
+    `;
+    cardsEl.appendChild(card);
+  });
 }
 
 // ═══ 간트 렌더링 ═══════════════════════════════════════════
 const pOpen={};
 D.filter(r=>r.t==='p').forEach(r=>pOpen[r.id]=true);
-let flt='all';
+let flt='all', curArea='all';
+
+function getWRange(){
+  const f=parseInt(document.getElementById('wfrom')?.value||1);
+  const t=parseInt(document.getElementById('wto')?.value||TW);
+  return{from:f,to:t};
+}
+function resetWRange(){
+  document.getElementById('wfrom').value=1;
+  document.getElementById('wto').value=TW;
+  render();
+}
 
 function render(){
+  calcStats();
   const tbl=document.getElementById('gtbl');
   tbl.innerHTML='';
+  const{from,to}=getWRange();
+  const colCount=to-from+1;
   const thead=tbl.createTHead();
 
   // 헤더 행1: 월
   const hr1=thead.insertRow();
-  hr1.innerHTML=`<th class="th-id" rowspan="2">ID</th><th class="th-nm" rowspan="2">작업명 / Task Name</th>`;
+  hr1.innerHTML=`<th class="th-id" rowspan="2">ID</th><th class="th-nm" rowspan="2">작업명 / Task Name</th><th class="th-ow" rowspan="2">담당</th>`;
   MONTHS.forEach(m=>{
+    const vis_s=Math.max(m.s,from), vis_e=Math.min(m.e,to);
+    if(vis_s>vis_e) return;
     const th=document.createElement('th');
-    th.className='th-mo'; th.colSpan=m.e-m.s+1;
+    th.className='th-mo'; th.colSpan=vis_e-vis_s+1;
     th.textContent='2026년 '+m.n;
     hr1.appendChild(th);
   });
 
   // 헤더 행2: 주차
   const hr2=thead.insertRow();
-  for(let w=1;w<=TW;w++){
+  for(let w=from;w<=to;w++){
     const d=weekStartDate(w);
     const th=document.createElement('th');
     th.className='th-w'+(w===TODAY_W?' th-w-now':w<TODAY_W?' th-w-past':'');
@@ -461,11 +545,18 @@ function render(){
   let curP=null;
   D.forEach(row=>{
     if(row.t==='p') curP=row.id;
+    // 영역 필터
+    if(curArea!=='all'&&row.t==='t'&&row.area!==curArea) return;
+    if(curArea!=='all'&&row.t==='m') return;
+    // 상태 필터
     if(flt!=='all'&&row.t==='t'&&row.st!==flt) return;
     if(flt!=='all'&&row.t==='m') return;
+    // 날짜 필터: task가 이 기간과 겹치는지
+    if(row.t==='t'&&(row.e<from||row.s>to)) return;
+    if(row.t==='m'&&(row.s<from||row.s>to)) return;
+
     const isChild=row.t==='t'||row.t==='m';
     const hide=isChild&&curP&&!pOpen[curP];
-
     const tr=tbody.insertRow();
     tr.className='r-'+{p:'phase',t:'task',m:'ms'}[row.t]+(hide?' hidden':'');
     if(isChild) tr.dataset.ph=curP;
@@ -489,10 +580,10 @@ function render(){
     const rl=document.createElement('div'); rl.className='rl';
     const pip=document.createElement('div'); pip.className='rpip';
     if(row.t==='m'){
-      pip.style.cssText=`background:#fbbf24;border-radius:2px`;
+      pip.style.cssText='background:#fbbf24;border-radius:2px';
       rl.appendChild(pip);
       const sp=document.createElement('span');
-      sp.style.cssText='color:#b45309;font-weight:700;font-size:.77rem';
+      sp.style.cssText='color:#b45309;font-weight:700;font-size:.76rem';
       sp.textContent='◆ '+row.n.replace('◆ ','');
       rl.appendChild(sp);
     } else {
@@ -500,7 +591,7 @@ function render(){
       rl.appendChild(pip);
       const sp=document.createElement('span'); sp.className='rtxt';
       if(row.t==='p') sp.style.cssText='font-weight:700;font-size:.79rem;color:#1e293b';
-      else sp.style.color=c;
+      else sp.style.color='#334155';
       sp.textContent=row.n;
       rl.appendChild(sp);
       if(row.t==='t'){
@@ -512,18 +603,25 @@ function render(){
     }
     tdn.appendChild(rl);
 
+    // 담당 셀
+    const tdow=tr.insertCell(); tdow.className='td-ow';
+    if(row.owner){
+      const chip=document.createElement('span');
+      chip.className='owner-chip';
+      chip.style.cssText=`background:${ownerColor(row.area)};color:${ownerTextColor(row.area)}`;
+      chip.textContent=row.owner;
+      chip.title=row.owner;
+      tdow.appendChild(chip);
+    }
+
     // 주차 셀
-    for(let w=1;w<=TW;w++){
+    for(let w=from;w<=to;w++){
       const td=tr.insertCell();
       const isPast=w<TODAY_W, isNow=w===TODAY_W;
       td.className='td-w'+(isNow?' col-now':isPast?' col-past':'');
 
       if(row.t==='m'){
-        if(w===row.s){
-          td.className+=' ms-cell';
-          td.textContent='◆';
-          td.title=`◆ ${row.n}\n${fmtDate(weekStartDate(w))}`;
-        }
+        if(w===row.s){td.className+=' ms-cell';td.textContent='◆';td.title=`◆ ${row.n}\n${fmtDate(weekStartDate(w))}`;}
       } else if(w>=row.s&&w<=row.e){
         const isSE=row.s===row.e, isS=w===row.s, isE=w===row.e;
         const isP=row.t==='p';
@@ -537,9 +635,9 @@ function render(){
         if(!isP&&row.st==='done') div.classList.add('bar-done');
         td.appendChild(div);
         if(isS){
-          const sd=weekStartDate(row.s), ed=weekStartDate(row.e);
+          const sd=weekStartDate(row.s), ed=new Date(weekStartDate(row.e));
           ed.setDate(ed.getDate()+6);
-          td.title=`${row.id}: ${row.n}\n기간: ${fmtDate(sd)} ~ ${fmtDate(ed)} (${row.e-row.s+1}주)\n영역: ${row.area} | 상태: ${SL[row.st]||''}`;
+          td.title=`${row.id}: ${row.n}\n담당: ${row.owner||'-'}\n기간: ${fmtDate(sd)} ~ ${fmtDate(ed)} (${row.e-row.s+1}주)\n영역: ${row.area} | 상태: ${SL[row.st]||''}`;
           td.style.cursor='help';
         }
       }
@@ -551,6 +649,7 @@ function render(){
 function togP(pid){
   pOpen[pid]=!pOpen[pid];
   document.querySelectorAll(`[data-ph="${pid}"]`).forEach(tr=>tr.classList.toggle('hidden',!pOpen[pid]));
+  const chv=document.querySelector(`.chv`);
   render();
 }
 function setF(f,btn){
@@ -558,84 +657,91 @@ function setF(f,btn){
   ['all','todo','doing','review','done'].forEach(x=>document.getElementById('f-'+x)?.classList.toggle('on',x===f));
   render();
 }
-function expAll(){D.filter(r=>r.t==='p').forEach(r=>pOpen[r.id]=true);render()}
-function colAll(){D.filter(r=>r.t==='p').forEach(r=>pOpen[r.id]=false);render()}
-
-// ─ 이번 주로 스크롤 ─
-function goToday(){
-  const w=Math.max(1,TODAY_W||1);
-  jumpToWeek(w);
+function setA(a,btn){
+  curArea=a;
+  ['all','이지원','사이버','콜센터','인프라','PMO'].forEach(x=>{
+    document.getElementById('fa-'+x)?.classList.toggle('on',x===a);
+  });
+  render();
 }
+function expAll(){D.filter(r=>r.t==='p').forEach(r=>pOpen[r.id]=true);render();}
+function colAll(){D.filter(r=>r.t==='p').forEach(r=>pOpen[r.id]=false);render();}
+
+function goToday(){jumpToWeek(Math.max(1,TODAY_W||1));}
 function jumpToWeek(w){
-  w=parseInt(w);
-  if(!w) return;
+  w=parseInt(w); if(!w) return;
   const sc=document.getElementById('gscroll');
-  const leftFixed=68+260; // id+name 고정폭
-  const scrollTo=(w-1)*28-100;
-  sc.scrollTo({left:Math.max(0,scrollTo),behavior:'smooth'});
+  const{from}=getWRange();
+  const offset=(w-from)*28-100;
+  sc.scrollTo({left:Math.max(0,offset),behavior:'smooth'});
   document.getElementById('weekSel').value=w;
 }
 
 // ─ Excel 내보내기 ─
 function exportExcel(){
-  if(typeof XLSX==='undefined'){alert('SheetJS 라이브러리 로딩 중입니다. 잠시 후 다시 시도해주세요.');return;}
+  if(typeof XLSX==='undefined'){alert('SheetJS 로딩 중입니다. 잠시 후 다시 시도해주세요.');return;}
   const wb=XLSX.utils.book_new();
 
-  // ── Sheet 1: WBS 전체 ──
-  const header=['ID','구분','작업명','업무영역','상태','시작주','종료주','기간(주)','시작일(예정)','종료일(예정)'];
-  const typeLabel={p:'Phase',t:'Task',m:'Milestone'};
+  // Sheet 1: WBS 전체
+  const h1=['ID','구분','작업명','업무영역','담당자','상태','시작주','종료주','기간(주)','시작일','종료일'];
   const rows=D.map(r=>{
-    const sd=weekStartDate(r.s);
-    const ed=new Date(weekStartDate(r.e)); ed.setDate(ed.getDate()+6);
-    return [
-      r.id, typeLabel[r.t], r.n, r.area,
-      SL[r.st]||r.st, r.s, r.e, r.e-r.s+1,
-      sd.toISOString().slice(0,10),
-      ed.toISOString().slice(0,10)
-    ];
+    const sd=weekStartDate(r.s), ed=new Date(weekStartDate(r.e));
+    ed.setDate(ed.getDate()+6);
+    return[r.id,{p:'Phase',t:'Task',m:'Milestone'}[r.t],r.n,r.area,r.owner||'',SL[r.st]||r.st,r.s,r.e,r.e-r.s+1,fmtDateFull(sd),fmtDateFull(ed)];
   });
-  const ws1=XLSX.utils.aoa_to_sheet([header,...rows]);
-  ws1['!cols']=[{wch:10},{wch:10},{wch:40},{wch:10},{wch:8},{wch:7},{wch:7},{wch:8},{wch:12},{wch:12}];
+  const ws1=XLSX.utils.aoa_to_sheet([h1,...rows]);
+  ws1['!cols']=[{wch:10},{wch:10},{wch:40},{wch:10},{wch:12},{wch:8},{wch:7},{wch:7},{wch:8},{wch:12},{wch:12}];
   XLSX.utils.book_append_sheet(wb,ws1,'WBS 전체');
 
-  // ── Sheet 2: Phase별 진척 ──
-  const phHeader=['Phase ID','Phase명','전체 작업','완료','진행중','검토중','대기','진척률(%)'];
-  let curPh=null; const phRows=[];
-  const phMap={};
+  // Sheet 2: Phase별 진척
+  const h2=['Phase','Phase명','전체','완료','진행중','검토중','대기','진척률(%)'];
+  let cp=null; const pm={};
   D.forEach(r=>{
-    if(r.t==='p'){curPh=r.id;phMap[r.id]={ph:r,kids:[]};}
-    else if(r.t==='t'&&curPh) phMap[curPh].kids.push(r);
+    if(r.t==='p'){cp=r.id;pm[r.id]={ph:r,kids:[]};}
+    else if(r.t==='t'&&cp) pm[cp].kids.push(r);
   });
-  Object.values(phMap).forEach(({ph,kids})=>{
+  const pr2=Object.values(pm).map(({ph,kids})=>{
     const tot=kids.length,dn=kids.filter(k=>k.st==='done').length,
           dg=kids.filter(k=>k.st==='doing').length,rv=kids.filter(k=>k.st==='review').length,
           td=kids.filter(k=>k.st==='todo').length;
-    phRows.push([ph.id,ph.n,tot,dn,dg,rv,td,tot?Math.round(dn/tot*100):0]);
+    return[ph.id,ph.n,tot,dn,dg,rv,td,tot?Math.round(dn/tot*100):0];
   });
-  const ws2=XLSX.utils.aoa_to_sheet([phHeader,...phRows]);
-  ws2['!cols']=[{wch:8},{wch:20},{wch:8},{wch:6},{wch:6},{wch:6},{wch:6},{wch:8}];
+  const ws2=XLSX.utils.aoa_to_sheet([h2,...pr2]);
+  ws2['!cols']=[{wch:8},{wch:20},{wch:8},{wch:6},{wch:8},{wch:6},{wch:6},{wch:8}];
   XLSX.utils.book_append_sheet(wb,ws2,'Phase 진척');
 
-  // ── Sheet 3: 마일스톤 ──
-  const msHeader=['마일스톤ID','이름','주차','예정일','상태'];
-  const msRows=D.filter(r=>r.t==='m').map(r=>{
-    const d=weekStartDate(r.s);
-    return [r.id,r.n.replace('◆ ',''),r.s,d.toISOString().slice(0,10),SL[r.st]||r.st];
+  // Sheet 3: 담당자별
+  const h3=['담당자','소속영역','담당 Task수','완료','진행중','대기','진척률(%)'];
+  const ownerMap={};
+  D.filter(r=>r.t==='t').forEach(r=>{
+    const k=r.owner||'미지정';
+    if(!ownerMap[k]) ownerMap[k]={owner:k,area:r.area,tasks:[]};
+    ownerMap[k].tasks.push(r);
   });
-  const ws3=XLSX.utils.aoa_to_sheet([msHeader,...msRows]);
-  ws3['!cols']=[{wch:8},{wch:30},{wch:6},{wch:12},{wch:8}];
-  XLSX.utils.book_append_sheet(wb,ws3,'마일스톤');
+  const pr3=Object.values(ownerMap).map(({owner,area,tasks})=>{
+    const tot=tasks.length,dn=tasks.filter(k=>k.st==='done').length,
+          dg=tasks.filter(k=>k.st==='doing').length,td=tasks.filter(k=>k.st==='todo').length;
+    return[owner,area,tot,dn,dg,td,tot?Math.round(dn/tot*100):0];
+  });
+  const ws3=XLSX.utils.aoa_to_sheet([h3,...pr3]);
+  ws3['!cols']=[{wch:12},{wch:10},{wch:10},{wch:6},{wch:6},{wch:6},{wch:8}];
+  XLSX.utils.book_append_sheet(wb,ws3,'담당자별');
+
+  // Sheet 4: 마일스톤
+  const h4=['마일스톤','이름','주차','예정일','담당','상태'];
+  const pr4=D.filter(r=>r.t==='m').map(r=>[r.id,r.n.replace('◆ ',''),r.s,fmtDateFull(weekStartDate(r.s)),r.owner||'',SL[r.st]||r.st]);
+  const ws4=XLSX.utils.aoa_to_sheet([h4,...pr4]);
+  ws4['!cols']=[{wch:8},{wch:30},{wch:6},{wch:12},{wch:10},{wch:8}];
+  XLSX.utils.book_append_sheet(wb,ws4,'마일스톤');
 
   XLSX.writeFile(wb,'WBS_GCGF0323_'+new Date().toISOString().slice(0,10)+'.xlsx');
 }
 
 // ═══ 초기화 ════════════════════════════════════════════════
 function init(){
-  calcStats();
   initWeekSel();
   render();
-  // 현재 주 자동 스크롤
-  if(TODAY_W>=1) setTimeout(()=>jumpToWeek(TODAY_W),400);
+  if(TODAY_W>=1&&TODAY_W<=TW) setTimeout(()=>jumpToWeek(TODAY_W),400);
 }
 </script>
 </body>
