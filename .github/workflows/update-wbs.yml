@@ -65,6 +65,7 @@ jobs:
           PROJECT_START_DATE:  ${{ vars.PROJECT_START_DATE }}   # 예: 2026-03-23
           TOTAL_WEEKS:         ${{ vars.TOTAL_WEEKS }}           # 예: 32
           WBS_OUTPUT:          docs/index.html
+          HISTORY_OUTPUT:      docs/history.html
         run: python scripts/generate_wbs.py
 
       # 5. 변경 있을 때만 커밋/푸시
