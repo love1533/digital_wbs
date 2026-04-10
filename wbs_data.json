@@ -1,0 +1,161 @@
+{
+  "project": {
+    "name": "디지털 고도화",
+    "description": "디지털 고도화 추진 프로젝트",
+    "start_date": "2026-04-02",
+    "end_date": "2026-10-30",
+    "phases": ["분석", "설계", "개발", "테스트", "이행"]
+  },
+  "tasks": [
+    {
+      "id": "AN-001",
+      "phase": "분석",
+      "category": "현행분석",
+      "name": "AS-IS 시스템 분석",
+      "owner": "김민구",
+      "start_date": "2026-04-01",
+      "end_date": "2026-04-18",
+      "weight": 5,
+      "plan_percent": 100,
+      "status": "진행중",
+      "daily_log": [
+        {"date": "2026-04-01", "percent": 5, "note": "프로젝트 킥오프"},
+        {"date": "2026-04-02", "percent": 10, "note": "현행 시스템 문서 수집"},
+        {"date": "2026-04-03", "percent": 20, "note": "인터뷰 3건 완료"},
+        {"date": "2026-04-07", "percent": 35, "note": "시스템 구성도 작성"},
+        {"date": "2026-04-08", "percent": 50, "note": "기능 목록 정리"},
+        {"date": "2026-04-09", "percent": 60, "note": "데이터 흐름 분석"},
+        {"date": "2026-04-10", "percent": 70, "note": "AS-IS 문서 초안 작성"}
+      ]
+    },
+    {
+      "id": "AN-002",
+      "phase": "분석",
+      "category": "현행분석",
+      "name": "업무 프로세스 분석",
+      "owner": "이지은",
+      "start_date": "2026-04-01",
+      "end_date": "2026-04-15",
+      "weight": 4,
+      "plan_percent": 100,
+      "status": "진행중",
+      "daily_log": [
+        {"date": "2026-04-01", "percent": 5, "note": "프로세스 목록 정리"},
+        {"date": "2026-04-03", "percent": 15, "note": "현업 인터뷰 시작"},
+        {"date": "2026-04-07", "percent": 40, "note": "주요 프로세스 5건 정리"},
+        {"date": "2026-04-08", "percent": 55, "note": "프로세스 맵 작성 중"},
+        {"date": "2026-04-09", "percent": 65, "note": "개선점 도출"},
+        {"date": "2026-04-10", "percent": 75, "note": "TO-BE 프로세스 초안"}
+      ]
+    },
+    {
+      "id": "AN-003",
+      "phase": "분석",
+      "category": "요구사항",
+      "name": "요구사항 수집 및 정의",
+      "owner": "박준호",
+      "start_date": "2026-04-07",
+      "end_date": "2026-04-22",
+      "weight": 5,
+      "plan_percent": 100,
+      "status": "진행중",
+      "daily_log": [
+        {"date": "2026-04-07", "percent": 10, "note": "요구사항 수집 양식 배포"},
+        {"date": "2026-04-08", "percent": 15, "note": "1차 수집 완료 (12건)"},
+        {"date": "2026-04-09", "percent": 20, "note": "추가 수집 진행"},
+        {"date": "2026-04-10", "percent": 25, "note": "요구사항 분류 시작"}
+      ]
+    },
+    {
+      "id": "DS-001",
+      "phase": "설계",
+      "category": "아키텍처",
+      "name": "시스템 아키텍처 설계",
+      "owner": "김민구",
+      "start_date": "2026-04-21",
+      "end_date": "2026-05-15",
+      "weight": 5,
+      "plan_percent": 100,
+      "status": "대기",
+      "daily_log": []
+    },
+    {
+      "id": "DS-002",
+      "phase": "설계",
+      "category": "UI/UX",
+      "name": "UI/UX 설계",
+      "owner": "이지은",
+      "start_date": "2026-04-21",
+      "end_date": "2026-05-20",
+      "weight": 4,
+      "plan_percent": 100,
+      "status": "대기",
+      "daily_log": []
+    },
+    {
+      "id": "DS-003",
+      "phase": "설계",
+      "category": "데이터",
+      "name": "데이터베이스 설계",
+      "owner": "박준호",
+      "start_date": "2026-04-25",
+      "end_date": "2026-05-15",
+      "weight": 4,
+      "plan_percent": 100,
+      "status": "대기",
+      "daily_log": []
+    },
+    {
+      "id": "DV-001",
+      "phase": "개발",
+      "category": "백엔드",
+      "name": "API 서버 개발",
+      "owner": "김민구",
+      "start_date": "2026-05-18",
+      "end_date": "2026-07-10",
+      "weight": 8,
+      "plan_percent": 100,
+      "status": "대기",
+      "daily_log": []
+    },
+    {
+      "id": "DV-002",
+      "phase": "개발",
+      "category": "프론트엔드",
+      "name": "프론트엔드 개발",
+      "owner": "이지은",
+      "start_date": "2026-05-25",
+      "end_date": "2026-07-17",
+      "weight": 7,
+      "plan_percent": 100,
+      "status": "대기",
+      "daily_log": []
+    },
+    {
+      "id": "TS-001",
+      "phase": "테스트",
+      "category": "통합테스트",
+      "name": "통합 테스트",
+      "owner": "박준호",
+      "start_date": "2026-07-20",
+      "end_date": "2026-08-14",
+      "weight": 5,
+      "plan_percent": 100,
+      "status": "대기",
+      "daily_log": []
+    },
+    {
+      "id": "DP-001",
+      "phase": "이행",
+      "category": "배포",
+      "name": "운영 환경 이행",
+      "owner": "김민구",
+      "start_date": "2026-08-17",
+      "end_date": "2026-09-30",
+      "weight": 5,
+      "plan_percent": 100,
+      "status": "대기",
+      "daily_log": []
+    }
+  ]
+}

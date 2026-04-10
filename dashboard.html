@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GCGF0323 디지털고도화 WBS 대시보드</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #f5f7fa; color: #333; }
+  .header { background: #1e293b; color: #fff; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .header h1 { font-size: 17px; font-weight: 700; }
+  .header .sub { font-size: 11px; color: #94a3b8; }
+  .header .info { font-size: 11px; color: #94a3b8; }
+  .tabs { display: flex; background: #fff; border-bottom: 2px solid #e0e0e0; padding: 0 24px; overflow-x: auto; }
+  .tab { padding: 11px 18px; cursor: pointer; font-size: 13px; font-weight: 500; color: #666; border-bottom: 3px solid transparent; transition: all .2s; white-space: nowrap; }
+  .tab:hover { color: #1976D2; }
+  .tab.active { color: #1976D2; border-bottom-color: #1976D2; }
+  .content { max-width: 1500px; margin: 0 auto; padding: 18px 24px; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .card { background: #fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.07); text-align: center; }
+  .card .value { font-size: 26px; font-weight: 700; margin: 4px 0 2px; }
+  .card .label { font-size: 11px; color: #888; }
+  .phase-bars { background: #fff; border-radius: 10px; padding: 18px; box-shadow: 0 1px 4px rgba(0,0,0,.07); margin-bottom: 18px; }
+  .phase-bars h3 { margin-bottom: 12px; font-size: 13px; font-weight: 600; }
+  .phase-row { display: flex; align-items: center; margin-bottom: 8px; }
+  .phase-row .pn { width: 110px; font-size: 11px; font-weight: 500; }
+  .phase-row .bar-bg { flex: 1; height: 20px; background: #e8edf2; border-radius: 10px; overflow: hidden; position: relative; }
+  .phase-row .bar-fill { height: 100%; border-radius: 10px; position: absolute; top: 0; left: 0; display: flex; align-items: center; justify-content: flex-end; padding-right: 6px; font-size: 9px; color: #fff; font-weight: 600; transition: width .5s; }
+  .phase-row .pct { width: 50px; text-align: right; font-size: 11px; font-weight: 600; }
+  .phase-row .cnt { width: 70px; text-align: right; font-size: 10px; color: #888; }
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
+  .chart-box { background: #fff; border-radius: 10px; padding: 18px; box-shadow: 0 1px 4px rgba(0,0,0,.07); }
+  .chart-box h3 { font-size: 13px; margin-bottom: 8px; }
+  .chart-box canvas { max-height: 240px; }
+  .tbl-wrap { background: #fff; border-radius: 10px; padding: 18px; box-shadow: 0 1px 4px rgba(0,0,0,.07); overflow-x: auto; margin-bottom: 16px; }
+  .tbl-wrap h3 { font-size: 13px; margin-bottom: 8px; font-weight: 600; }
+  .filters { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  .filters select, .filters input { padding: 4px 8px; border: 1px solid #ddd; border-radius: 5px; font-size: 11px; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  th { background: #f8f9fb; padding: 7px 8px; text-align: left; font-weight: 600; border-bottom: 2px solid #e0e0e0; white-space: nowrap; }
+  td { padding: 6px 8px; border-bottom: 1px solid #f0f0f0; }
+  tr:hover td { background: #f5f8ff; }
+  .badge { display: inline-block; padding: 2px 7px; border-radius: 8px; font-size: 9px; font-weight: 600; }
+  .b-todo { background: #F5F5F5; color: #757575; }
+  .b-doing { background: #E3F2FD; color: #1565C0; }
+  .b-review { background: #FFF3E0; color: #E65100; }
+  .b-done { background: #E8F5E9; color: #2E7D32; }
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 100; align-items: center; justify-content: center; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: #fff; border-radius: 12px; padding: 22px; width: 90%; max-width: 560px; max-height: 80vh; overflow-y: auto; }
+  .modal h3 { margin-bottom: 12px; font-size: 15px; }
+  .modal .close-btn { float: right; background: none; border: none; font-size: 20px; cursor: pointer; color: #888; }
+  /* Gantt */
+  .gantt-wrap { overflow-x: auto; }
+  .gt { border-collapse: collapse; font-size: 10px; width: max-content; min-width: 100%; }
+  .gt th, .gt td { border: 1px solid #e2e8f0; padding: 0; }
+  .gt .g-n { position: sticky; left: 0; z-index: 2; background: #fff; padding: 3px 6px; min-width: 260px; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+  .gt .g-p { position: sticky; left: 0; z-index: 2; background: #f1f5f9; padding: 4px 8px; font-weight: 700; font-size: 12px; min-width: 260px; }
+  .gt .g-h { background: #1e293b; color: #94a3b8; font-size: 9px; padding: 3px 1px; text-align: center; position: sticky; top: 0; z-index: 3; }
+  .gt .g-h.g-hn { position: sticky; left: 0; z-index: 5; min-width: 260px; }
+  .gt .g-w { width: 32px; min-width: 32px; }
+  /* Weekly */
+  .wk-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .wk-card { background: #fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.07); }
+  .wk-card h4 { font-size: 12px; color: #64748b; margin-bottom: 8px; }
+  .wk-card .wk-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 12px; border-bottom: 1px solid #f1f5f9; }
+  .wk-card .wk-row:last-child { border-bottom: none; }
+  .wk-val { font-weight: 700; }
+  .delta { font-weight: 600; font-size: 11px; }
+  .delta.pos { color: #4CAF50; }
+  .delta.neg { color: #F44336; }
+  .delta.zero { color: #9E9E9E; }
+  .msg { text-align: center; padding: 50px 20px; color: #888; font-size: 14px; }
+  .msg.error { color: #F44336; }
+  @media (max-width: 768px) { .charts-row { grid-template-columns: 1fr; } .cards { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<div class="header">
+  <div><h1>GCGF0323 디지털고도화 WBS 대시보드</h1><div class="sub">경기신용보증재단 디지털고도화 구축 프로젝트</div></div>
+  <div class="info" id="snapInfo">로딩 중...</div>
+</div>
+<div class="tabs">
+  <div class="tab active" data-tab="overview">전체 현황</div>
+  <div class="tab" data-tab="weekly">주간 분석</div>
+  <div class="tab" data-tab="gantt">WBS 간트</div>
+  <div class="tab" data-tab="phase">페이즈별</div>
+  <div class="tab" data-tab="tasks">이슈 목록</div>
+</div>
+<div class="content">
+  <div class="tab-panel active" id="panel-overview">
+    <div class="cards" id="overviewCards"></div>
+    <div class="phase-bars"><h3>페이즈별 진척률</h3><div id="phaseBarList"></div></div>
+    <div class="charts-row">
+      <div class="chart-box"><h3>상태 분포</h3><canvas id="statusChart"></canvas></div>
+      <div class="chart-box"><h3>업무영역별 이슈 수</h3><canvas id="areaChart"></canvas></div>
+    </div>
+  </div>
+  <div class="tab-panel" id="panel-weekly">
+    <div id="weeklyContent"><div class="msg">스냅샷 로딩 중...</div></div>
+  </div>
+  <div class="tab-panel" id="panel-gantt">
+    <div class="tbl-wrap gantt-wrap" id="ganttWrap"></div>
+  </div>
+  <div class="tab-panel" id="panel-phase"><div id="phaseDetail"></div></div>
+  <div class="tab-panel" id="panel-tasks">
+    <div class="tbl-wrap">
+      <h3>전체 이슈</h3>
+      <div class="filters">
+        <input type="text" id="taskSearch" placeholder="검색 (KEY, 제목, 담당자)">
+        <select id="taskPhase"><option value="">전체 페이즈</option></select>
+        <select id="taskStatus"><option value="">전체 상태</option></select>
+        <select id="taskArea"><option value="">전체 영역</option></select>
+      </div>
+      <table><thead><tr><th>KEY</th><th>WBS</th><th>제목</th><th>페이즈</th><th>영역</th><th>담당자</th><th>시작일</th><th>종료일</th><th>상태</th><th>우선순위</th></tr></thead><tbody id="taskBody"></tbody></table>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal"><button class="close-btn" onclick="closeModal()">&times;</button><h3 id="modalTitle"></h3><div id="modalContent"></div></div>
+</div>
+
+<script>
+const PS = new Date('2026-04-02'), TW = 30, JB = 'https://gcgfmobile.atlassian.net';
+const PM = {
+  '0':{n:'PMO/사업관리',c:'#64748b'},'1':{n:'분석',c:'#3b82f6'},'2':{n:'설계',c:'#8b5cf6'},
+  '3':{n:'개발/구축',c:'#10b981'},'4':{n:'테스트',c:'#f59e0b'},'5':{n:'이행/오픈',c:'#ef4444'},
+  '6':{n:'안정화/성과',c:'#06b6d4'},'7':{n:'종료',c:'#78716c'}
+};
+const SL={todo:'대기',doing:'진행',review:'검토',done:'완료'};
+const SC={todo:'b-todo',doing:'b-doing',review:'b-review',done:'b-done'};
+const STC={'대기':'#9E9E9E','진행':'#2196F3','검토':'#FF9800','완료':'#4CAF50'};
+const AKW={
+  '이지원':['이지원','마이다스','법인','공동대표','ocr','챗봇','팩토리','상품','app','고도화','보증신청','사후관리','native','보증상품'],
+  '사이버보증':['사이버','보증','전자서명','재무자료','마이데이터'],
+  '콜센터':['콜센터','상담','ars','pbx','cti','ivr','녹음','음성봇','콜봇','stt','aicc'],
+  '인프라':['인프라','클라우드','k8s','ci/cd','보안','방화벽','waf','db','데이터','edw','bi','표준화','정제','정보계','싱글뷰'],
+  'PMO':['킥오프','착수','사업수행','보고','관리','품질','감리','산출물','교육','안정화','모니터링','결함','kpi','개선','종료','납품','완료보고','요구사항추적']
+};
+
+let allSnapshots = {}, curIssues = [], latestSnap = null;
+
+function wbs(i){const l=(i.labels||[]).find(x=>x.startsWith('WBS_'));return l?l.replace('WBS_','').replace(/_/g,'.'):null;}
+function pn(i){const c=wbs(i);return c?c.split('.')[0]:null;}
+function pName(i){const p=pn(i);return p&&PM[p]?PM[p].n:'기타';}
+function area(i){const t=[i.summary,...(i.labels||[])].join(' ').toLowerCase();for(const[a,ks]of Object.entries(AKW)){if(ks.some(k=>t.includes(k)))return a;}return 'PMO';}
+function d2w(ds){if(!ds)return null;const d=new Date(ds),delta=Math.floor((d-PS)/864e5);return delta<0?1:Math.min(Math.floor(delta/7)+1,TW);}
+function wsd(w){const d=new Date(PS);d.setDate(d.getDate()+(w-1)*7);return d;}
+function fd(d){return(d.getMonth()+1)+'/'+d.getDate();}
+function badge(s){return `<span class="badge ${SC[s]||'b-todo'}">${SL[s]||s}</span>`;}
+function deltaHtml(v){if(v>0)return `<span class="delta pos">+${v}</span>`;if(v<0)return `<span class="delta neg">${v}</span>`;return `<span class="delta zero">-</span>`;}
+
+// Bar color by status: done=full opacity, doing=0.7, todo=0.35
+function barColor(baseColor, status) {
+  const opacity = status === 'done' ? 1.0 : status === 'doing' || status === 'review' ? 0.7 : 0.35;
+  return { color: baseColor, opacity };
+}
+
+// Tab switching
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('panel-'+tab.dataset.tab).classList.add('active');
+  });
+});
+
+// Load
+async function loadData(){
+  try{
+    const ir=await fetch('docs/data/snapshots/index.json?'+Date.now());
+    if(!ir.ok) throw new Error('스냅샷 인덱스를 찾을 수 없습니다.');
+    const idx=await ir.json();
+    if(!idx.snapshots||!idx.snapshots.length) throw new Error('스냅샷이 없습니다.');
+
+    // Load all snapshots
+    for(const s of idx.snapshots){
+      const r=await fetch('docs/data/snapshots/'+s.file+'?'+Date.now());
+      allSnapshots[s.date]=await r.json();
+    }
+    latestSnap=idx.snapshots[0];
+    const data=allSnapshots[latestSnap.date];
+    // Filter: only WBS-labeled, exclude done duplicates from old snapshots
+    curIssues=data.issues.filter(i=>(i.labels||[]).some(l=>l.startsWith('WBS_')));
+
+    document.getElementById('snapInfo').textContent=
+      `최신: ${latestSnap.date} | 이슈: ${curIssues.length}건 | 스냅샷: ${idx.snapshots.length}개`;
+    renderAll();
+  }catch(e){
+    document.querySelector('.content').innerHTML=`<div class="msg error">${e.message}</div>`;
+  }
+}
+
+function renderAll(){renderOverview();renderWeekly();renderGantt();renderPhaseDetail();renderTasks();}
+
+// --- Overview ---
+let sc1=null,sc2=null;
+function renderOverview(){
+  const tot=curIssues.length;
+  const done=curIssues.filter(i=>i.status_wbs==='done').length;
+  const doing=curIssues.filter(i=>i.status_wbs==='doing').length;
+  const review=curIssues.filter(i=>i.status_wbs==='review').length;
+  const todo=curIssues.filter(i=>i.status_wbs==='todo').length;
+  document.getElementById('overviewCards').innerHTML=`
+    <div class="card"><div class="label">전체 이슈</div><div class="value" style="color:#1976D2">${tot}</div><div class="label">원본 WBS</div></div>
+    <div class="card"><div class="label">진행 중</div><div class="value" style="color:#2196F3">${doing}</div></div>
+    <div class="card"><div class="label">검토</div><div class="value" style="color:#FF9800">${review}</div></div>
+    <div class="card"><div class="label">완료</div><div class="value" style="color:#4CAF50">${done}</div><div class="label">${tot?(done/tot*100).toFixed(1):0}%</div></div>
+    <div class="card"><div class="label">대기</div><div class="value" style="color:#9E9E9E">${todo}</div></div>
+    <div class="card"><div class="label">기간</div><div class="value" style="font-size:18px;color:#333">${TW}주</div><div class="label">04-02 ~ 10-30</div></div>`;
+  // Phase bars
+  document.getElementById('phaseBarList').innerHTML=Object.entries(PM).map(([p,v])=>{
+    const pi=curIssues.filter(i=>pn(i)===p),cnt=pi.length;
+    const dn=pi.filter(i=>i.status_wbs==='done').length;
+    const dg=pi.filter(i=>i.status_wbs==='doing'||i.status_wbs==='review').length;
+    const pct=cnt?(dn/cnt*100):0;
+    const actPct=cnt?((dn+dg)/cnt*100):0;
+    return `<div class="phase-row">
+      <div class="pn">${v.n}</div>
+      <div class="bar-bg">
+        <div class="bar-fill" style="width:${actPct}%;background:${v.c};opacity:0.25"></div>
+        <div class="bar-fill" style="width:${pct}%;background:${v.c}">${pct>8?pct.toFixed(0)+'%':''}</div>
+      </div>
+      <div class="pct">${pct.toFixed(0)}%</div>
+      <div class="cnt">${dn}/${cnt}건</div>
+    </div>`;
+  }).join('');
+  // Charts
+  if(sc1)sc1.destroy();
+  sc1=new Chart(document.getElementById('statusChart'),{type:'doughnut',data:{labels:['대기','진행','검토','완료'],datasets:[{data:[todo,doing,review,done],backgroundColor:['#9E9E9E','#2196F3','#FF9800','#4CAF50']}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}}}});
+  const am={};curIssues.forEach(i=>{const a=area(i);am[a]=(am[a]||0)+1;});
+  const al=Object.keys(am).sort((a,b)=>am[b]-am[a]);
+  const ac={'이지원':'#3b82f6','사이버보증':'#8b5cf6','콜센터':'#10b981','인프라':'#f59e0b','PMO':'#94a3b8'};
+  if(sc2)sc2.destroy();
+  sc2=new Chart(document.getElementById('areaChart'),{type:'bar',data:{labels:al,datasets:[{label:'이슈',data:al.map(a=>am[a]),backgroundColor:al.map(a=>ac[a]||'#ccc')}]},options:{responsive:true,indexAxis:'y',plugins:{legend:{display:false}}}});
+}
+
+// --- Weekly Analysis ---
+function renderWeekly(){
+  const dates=Object.keys(allSnapshots).sort();
+  if(dates.length<2){
+    document.getElementById('weeklyContent').innerHTML='<div class="msg">주간 비교를 위해 최소 2개 스냅샷이 필요합니다.</div>';
+    return;
+  }
+  const cur=dates[dates.length-1]; // latest (2026-04-10, Thursday)
+  const prev=dates[dates.length-2]; // previous (2026-03-19)
+
+  const curData=allSnapshots[cur].issues.filter(i=>(i.labels||[]).some(l=>l.startsWith('WBS_')));
+  const prevData=allSnapshots[prev].issues.filter(i=>(i.labels||[]).some(l=>l.startsWith('WBS_')));
+
+  // Build maps
+  const curMap=Object.fromEntries(curData.map(i=>[i.key,i]));
+  const prevMap=Object.fromEntries(prevData.map(i=>[i.key,i]));
+
+  // Stats
+  const curSt={todo:0,doing:0,review:0,done:0};
+  const prevSt={todo:0,doing:0,review:0,done:0};
+  curData.forEach(i=>curSt[i.status_wbs]=(curSt[i.status_wbs]||0)+1);
+  prevData.forEach(i=>prevSt[i.status_wbs]=(prevSt[i.status_wbs]||0)+1);
+
+  // Changes
+  const statusChanges=[];
+  const newIssues=[];
+  const removedIssues=[];
+  curData.forEach(i=>{
+    const p=prevMap[i.key];
+    if(!p) newIssues.push(i);
+    else if(p.status_wbs!==i.status_wbs) statusChanges.push({key:i.key,summary:i.summary,from:p.status_wbs,to:i.status_wbs});
+  });
+  prevData.forEach(i=>{if(!curMap[i.key])removedIssues.push(i);});
+
+  // Phase comparison
+  const phaseComp=Object.entries(PM).map(([p,v])=>{
+    const curP=curData.filter(i=>pn(i)===p);
+    const prevP=prevData.filter(i=>pn(i)===p);
+    const curDone=curP.filter(i=>i.status_wbs==='done').length;
+    const prevDone=prevP.filter(i=>i.status_wbs==='done').length;
+    const curDoing=curP.filter(i=>i.status_wbs==='doing'||i.status_wbs==='review').length;
+    const prevDoing=prevP.filter(i=>i.status_wbs==='doing'||i.status_wbs==='review').length;
+    return {phase:v.n,color:v.c,curTotal:curP.length,prevTotal:prevP.length,curDone,prevDone,curDoing,prevDoing};
+  });
+
+  let html=`
+  <h3 style="margin-bottom:14px;font-size:15px">주간 진척 분석 <span style="font-size:12px;color:#64748b;font-weight:400">${prev} &rarr; ${cur}</span></h3>
+
+  <div class="wk-cards">
+    <div class="wk-card">
+      <h4>전체 상태 변화</h4>
+      <div class="wk-row"><span>전체 이슈</span><span class="wk-val">${prevData.length} &rarr; ${curData.length} ${deltaHtml(curData.length-prevData.length)}</span></div>
+      <div class="wk-row"><span>완료</span><span class="wk-val">${prevSt.done||0} &rarr; ${curSt.done||0} ${deltaHtml((curSt.done||0)-(prevSt.done||0))}</span></div>
+      <div class="wk-row"><span>진행</span><span class="wk-val">${prevSt.doing||0} &rarr; ${curSt.doing||0} ${deltaHtml((curSt.doing||0)-(prevSt.doing||0))}</span></div>
+      <div class="wk-row"><span>검토</span><span class="wk-val">${prevSt.review||0} &rarr; ${curSt.review||0} ${deltaHtml((curSt.review||0)-(prevSt.review||0))}</span></div>
+      <div class="wk-row"><span>대기</span><span class="wk-val">${prevSt.todo||0} &rarr; ${curSt.todo||0} ${deltaHtml((curSt.todo||0)-(prevSt.todo||0))}</span></div>
+    </div>
+
+    <div class="wk-card">
+      <h4>완료율</h4>
+      <div class="wk-row"><span>이전</span><span class="wk-val">${prevData.length?(((prevSt.done||0)/prevData.length)*100).toFixed(1):0}%</span></div>
+      <div class="wk-row"><span>현재</span><span class="wk-val">${curData.length?(((curSt.done||0)/curData.length)*100).toFixed(1):0}%</span></div>
+      <div class="wk-row"><span>변동</span><span class="wk-val">${deltaHtml(
+        (curData.length?((curSt.done||0)/curData.length*100):0) - (prevData.length?((prevSt.done||0)/prevData.length*100):0)
+      )}</span></div>
+    </div>
+
+    <div class="wk-card">
+      <h4>이슈 변동</h4>
+      <div class="wk-row"><span>상태 변경</span><span class="wk-val" style="color:#2196F3">${statusChanges.length}건</span></div>
+      <div class="wk-row"><span>신규 추가</span><span class="wk-val" style="color:#4CAF50">${newIssues.length}건</span></div>
+      <div class="wk-row"><span>종료/제거</span><span class="wk-val" style="color:#F44336">${removedIssues.length}건</span></div>
+    </div>
+  </div>
+
+  <div class="tbl-wrap">
+    <h3>페이즈별 비교</h3>
+    <table>
+      <thead><tr><th>페이즈</th><th>이슈 수 (이전→현재)</th><th>완료 (이전→현재)</th><th>진행 (이전→현재)</th><th>완료율 변동</th></tr></thead>
+      <tbody>${phaseComp.map(p=>{
+        const prevPct=p.prevTotal?(p.prevDone/p.prevTotal*100):0;
+        const curPct=p.curTotal?(p.curDone/p.curTotal*100):0;
+        const diff=curPct-prevPct;
+        return `<tr>
+          <td><strong style="color:${p.color}">${p.phase}</strong></td>
+          <td>${p.prevTotal} &rarr; ${p.curTotal} ${deltaHtml(p.curTotal-p.prevTotal)}</td>
+          <td>${p.prevDone} &rarr; ${p.curDone} ${deltaHtml(p.curDone-p.prevDone)}</td>
+          <td>${p.prevDoing} &rarr; ${p.curDoing} ${deltaHtml(p.curDoing-p.prevDoing)}</td>
+          <td>${prevPct.toFixed(0)}% &rarr; ${curPct.toFixed(0)}% ${deltaHtml(parseFloat(diff.toFixed(1)))}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>
+  </div>`;
+
+  if(statusChanges.length>0){
+    html+=`<div class="tbl-wrap">
+      <h3>상태 변경 이슈 (${statusChanges.length}건)</h3>
+      <table>
+        <thead><tr><th>KEY</th><th>제목</th><th>이전 상태</th><th>&rarr;</th><th>현재 상태</th></tr></thead>
+        <tbody>${statusChanges.map(c=>`<tr>
+          <td><a href="${JB}/browse/${c.key}" target="_blank" style="color:#2563eb;text-decoration:none;font-weight:600">${c.key}</a></td>
+          <td>${c.summary}</td>
+          <td>${badge(c.from)}</td>
+          <td style="text-align:center">&rarr;</td>
+          <td>${badge(c.to)}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+  }
+
+  if(removedIssues.length>0){
+    html+=`<div class="tbl-wrap">
+      <h3>종료/제거된 이슈 (${removedIssues.length}건) — 중복 정리 등</h3>
+      <p style="font-size:11px;color:#888;margin-bottom:8px">이전 스냅샷에는 있었지만 현재는 없는 이슈 (중복 종료 처리 포함)</p>
+      <div style="font-size:11px;color:#64748b">${removedIssues.length}건의 이슈가 정리되었습니다.</div>
+    </div>`;
+  }
+
+  document.getElementById('weeklyContent').innerHTML=html;
+}
+
+// --- Gantt ---
+function renderGantt(){
+  const wrap=document.getElementById('ganttWrap');
+  let h='<table class="gt"><thead><tr><th class="g-h g-hn">작업명</th>';
+  // Month headers
+  const months=[{n:'4월',s:1,e:4},{n:'5월',s:5,e:9},{n:'6월',s:10,e:13},{n:'7월',s:14,e:17},{n:'8월',s:18,e:22},{n:'9월',s:23,e:26},{n:'10월',s:27,e:30}];
+  // Two header rows
+  h+='</tr><tr><th class="g-h g-hn" style="font-size:10px">WBS 코드 / 제목</th>';
+  for(let w=1;w<=TW;w++){
+    const d=wsd(w);
+    h+=`<th class="g-h g-w" title="W${w}: ${fd(d)}">W${w}</th>`;
+  }
+  h+='</tr></thead><tbody>';
+
+  Object.entries(PM).forEach(([p,v])=>{
+    const pi=curIssues.filter(i=>pn(i)===p).sort((a,b)=>(wbs(a)||'').localeCompare(wbs(b)||''));
+    if(!pi.length) return;
+    const as=pi.map(i=>d2w(i.start_date)).filter(Boolean);
+    const ae=pi.map(i=>d2w(i.due_date)).filter(Boolean);
+    const ps=as.length?Math.min(...as):1, pe=ae.length?Math.max(...ae):TW;
+    const doneCnt=pi.filter(i=>i.status_wbs==='done').length;
+    const doingCnt=pi.filter(i=>i.status_wbs==='doing'||i.status_wbs==='review').length;
+
+    // Phase row
+    h+=`<tr><td class="g-p"><span style="color:${v.c}">${v.n}</span> <span style="font-size:10px;color:#94a3b8;font-weight:400">${pi.length}건 (완료${doneCnt} 진행${doingCnt})</span></td>`;
+    for(let w=1;w<=TW;w++){
+      h+=`<td style="padding:0">${w>=ps&&w<=pe?`<div style="height:4px;margin:9px 0;background:${v.c};opacity:0.15;border-radius:2px"></div>`:''}</td>`;
+    }
+    h+='</tr>';
+
+    // Issue rows
+    pi.forEach(iss=>{
+      const sw=d2w(iss.start_date)||1, ew=d2w(iss.due_date)||sw;
+      const code=wbs(iss)||'';
+      const {color, opacity}=barColor(v.c, iss.status_wbs);
+      const borderStyle=iss.status_wbs==='done'?'2px solid '+v.c:'none';
+      h+=`<tr style="cursor:pointer" onclick="showDetail('${iss.key}')">
+        <td class="g-n"><span style="color:#94a3b8;font-size:9px;font-family:monospace">${code}</span> ${iss.summary} ${badge(iss.status_wbs)}</td>`;
+      for(let w=1;w<=TW;w++){
+        if(w>=sw&&w<=ew){
+          const isS=w===sw,isE=w===ew;
+          const rad=isS&&isE?'3px':isS?'3px 0 0 3px':isE?'0 3px 3px 0':'0';
+          h+=`<td style="padding:0"><div style="height:${iss.status_wbs==='done'?12:10}px;margin:${iss.status_wbs==='done'?4:5}px 1px;background:${color};opacity:${opacity};border-radius:${rad};${iss.status_wbs==='done'?'box-shadow:0 1px 3px rgba(0,0,0,.2)':''}"></div></td>`;
+        } else {
+          h+='<td></td>';
+        }
+      }
+      h+='</tr>';
+    });
+  });
+  h+='</tbody></table>';
+  wrap.innerHTML=h;
+}
+
+// --- Phase Detail ---
+function renderPhaseDetail(){
+  const c=document.getElementById('phaseDetail');
+  let h='';
+  Object.entries(PM).forEach(([p,v])=>{
+    const pi=curIssues.filter(i=>pn(i)===p).sort((a,b)=>(wbs(a)||'').localeCompare(wbs(b)||''));
+    if(!pi.length) return;
+    const dn=pi.filter(i=>i.status_wbs==='done').length;
+    const dg=pi.filter(i=>i.status_wbs==='doing').length;
+    h+=`<div class="tbl-wrap"><h3 style="color:${v.c}">${v.n} — ${pi.length}건 (완료 ${dn}, 진행 ${dg})</h3>
+      <table><thead><tr><th>KEY</th><th>WBS</th><th>제목</th><th>영역</th><th>담당자</th><th>기간</th><th>상태</th></tr></thead>
+      <tbody>${pi.map(i=>`<tr style="cursor:pointer" onclick="showDetail('${i.key}')">
+        <td><a href="${JB}/browse/${i.key}" target="_blank" style="color:#2563eb;text-decoration:none;font-weight:600">${i.key}</a></td>
+        <td style="font-family:monospace;font-size:10px;color:#64748b">${wbs(i)||''}</td>
+        <td>${i.summary}</td><td>${area(i)}</td><td>${i.assignee||'-'}</td>
+        <td style="font-size:10px">${i.start_date||'-'} ~ ${i.due_date||'-'}</td><td>${badge(i.status_wbs)}</td>
+      </tr>`).join('')}</tbody></table></div>`;
+  });
+  c.innerHTML=h;
+}
+
+// --- Tasks ---
+function renderTasks(){
+  const phF=document.getElementById('taskPhase').value;
+  const stF=document.getElementById('taskStatus').value;
+  const arF=document.getElementById('taskArea').value;
+  const q=(document.getElementById('taskSearch').value||'').toLowerCase();
+  popSel('taskPhase',Object.entries(PM).map(([k,v])=>({v:k,l:v.n})));
+  popSel('taskStatus',Object.entries(SL).map(([k,v])=>({v:k,l:v})));
+  popSel('taskArea',[...new Set(curIssues.map(area))].sort().map(a=>({v:a,l:a})));
+  let f=curIssues;
+  if(phF)f=f.filter(i=>pn(i)===phF);if(stF)f=f.filter(i=>i.status_wbs===stF);
+  if(arF)f=f.filter(i=>area(i)===arF);if(q)f=f.filter(i=>(i.key+i.summary+(i.assignee||'')).toLowerCase().includes(q));
+  f.sort((a,b)=>(wbs(a)||'').localeCompare(wbs(b)||''));
+  document.getElementById('taskBody').innerHTML=f.map(i=>`<tr style="cursor:pointer" onclick="showDetail('${i.key}')">
+    <td><a href="${JB}/browse/${i.key}" target="_blank" style="color:#2563eb;text-decoration:none;font-weight:600">${i.key}</a></td>
+    <td style="font-family:monospace;font-size:10px;color:#64748b">${wbs(i)||''}</td>
+    <td>${i.summary}</td><td>${pName(i)}</td><td>${area(i)}</td><td>${i.assignee||'-'}</td>
+    <td style="font-size:10px">${i.start_date||'-'}</td><td style="font-size:10px">${i.due_date||'-'}</td>
+    <td>${badge(i.status_wbs)}</td><td>${i.priority||'-'}</td></tr>`).join('');
+}
+function popSel(id,items){const e=document.getElementById(id);if(e.options.length>1)return;items.forEach(i=>{const o=document.createElement('option');o.value=i.v;o.textContent=i.l;e.appendChild(o);});}
+['taskPhase','taskStatus','taskArea'].forEach(id=>document.getElementById(id).addEventListener('change',renderTasks));
+document.getElementById('taskSearch').addEventListener('input',renderTasks);
+
+// --- Modal ---
+function showDetail(key){
+  const i=curIssues.find(x=>x.key===key)||(allSnapshots[latestSnap.date]?allSnapshots[latestSnap.date].issues.find(x=>x.key===key):null);
+  if(!i)return;
+  document.getElementById('modalTitle').textContent=`${i.key} — ${i.summary}`;
+  document.getElementById('modalContent').innerHTML=`<p style="margin-bottom:10px;color:#666;font-size:12px">
+    <strong>WBS:</strong> ${wbs(i)||'-'} | <strong>페이즈:</strong> ${pName(i)} | <strong>영역:</strong> ${area(i)}<br>
+    <strong>기간:</strong> ${i.start_date||'-'} ~ ${i.due_date||'-'} | <strong>담당자:</strong> ${i.assignee||'-'}<br>
+    <strong>상태:</strong> ${badge(i.status_wbs)} | <strong>우선순위:</strong> ${i.priority||'-'} | <strong>유형:</strong> ${i.issue_type||'-'}<br>
+    <strong>라벨:</strong> ${(i.labels||[]).join(', ')||'-'}<br>
+    <strong>생성:</strong> ${i.created||'-'} | <strong>수정:</strong> ${i.updated||'-'}
+  </p><a href="${JB}/browse/${i.key}" target="_blank" style="color:#2563eb;font-size:12px">Jira에서 보기 &rarr;</a>`;
+  document.getElementById('modalOverlay').classList.add('show');
+}
+function closeModal(){document.getElementById('modalOverlay').classList.remove('show');}
+document.getElementById('modalOverlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
+
+loadData();
+</script>
+</body>
+</html>
