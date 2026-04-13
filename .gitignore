@@ -8,3 +8,5 @@ build/
 .env
 .env.local
 .env.*.local
+.server.pid
+.server.log

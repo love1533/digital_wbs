@@ -6,82 +6,178 @@
 <title>GCGF0323 디지털고도화 WBS 대시보드</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #f5f7fa; color: #333; }
-  .header { background: #1e293b; color: #fff; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
-  .header h1 { font-size: 17px; font-weight: 700; }
-  .header .sub { font-size: 11px; color: #94a3b8; }
-  .header .info { font-size: 11px; color: #94a3b8; }
-  .tabs { display: flex; background: #fff; border-bottom: 2px solid #e0e0e0; padding: 0 24px; overflow-x: auto; }
-  .tab { padding: 11px 18px; cursor: pointer; font-size: 13px; font-weight: 500; color: #666; border-bottom: 3px solid transparent; transition: all .2s; white-space: nowrap; }
-  .tab:hover { color: #1976D2; }
-  .tab.active { color: #1976D2; border-bottom-color: #1976D2; }
-  .content { max-width: 1500px; margin: 0 auto; padding: 18px 24px; }
-  .tab-panel { display: none; }
-  .tab-panel.active { display: block; }
-  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 18px; }
-  .card { background: #fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.07); text-align: center; }
-  .card .value { font-size: 26px; font-weight: 700; margin: 4px 0 2px; }
-  .card .label { font-size: 11px; color: #888; }
-  .phase-bars { background: #fff; border-radius: 10px; padding: 18px; box-shadow: 0 1px 4px rgba(0,0,0,.07); margin-bottom: 18px; }
-  .phase-bars h3 { margin-bottom: 12px; font-size: 13px; font-weight: 600; }
-  .phase-row { display: flex; align-items: center; margin-bottom: 8px; }
-  .phase-row .pn { width: 110px; font-size: 11px; font-weight: 500; }
-  .phase-row .bar-bg { flex: 1; height: 20px; background: #e8edf2; border-radius: 10px; overflow: hidden; position: relative; }
-  .phase-row .bar-fill { height: 100%; border-radius: 10px; position: absolute; top: 0; left: 0; display: flex; align-items: center; justify-content: flex-end; padding-right: 6px; font-size: 9px; color: #fff; font-weight: 600; transition: width .5s; }
-  .phase-row .pct { width: 50px; text-align: right; font-size: 11px; font-weight: 600; }
-  .phase-row .cnt { width: 70px; text-align: right; font-size: 10px; color: #888; }
-  .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
-  .chart-box { background: #fff; border-radius: 10px; padding: 18px; box-shadow: 0 1px 4px rgba(0,0,0,.07); }
-  .chart-box h3 { font-size: 13px; margin-bottom: 8px; }
-  .chart-box canvas { max-height: 240px; }
-  .tbl-wrap { background: #fff; border-radius: 10px; padding: 18px; box-shadow: 0 1px 4px rgba(0,0,0,.07); overflow-x: auto; margin-bottom: 16px; }
-  .tbl-wrap h3 { font-size: 13px; margin-bottom: 8px; font-weight: 600; }
-  .filters { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
-  .filters select, .filters input { padding: 4px 8px; border: 1px solid #ddd; border-radius: 5px; font-size: 11px; }
-  table { width: 100%; border-collapse: collapse; font-size: 11px; }
-  th { background: #f8f9fb; padding: 7px 8px; text-align: left; font-weight: 600; border-bottom: 2px solid #e0e0e0; white-space: nowrap; }
-  td { padding: 6px 8px; border-bottom: 1px solid #f0f0f0; }
-  tr:hover td { background: #f5f8ff; }
-  .badge { display: inline-block; padding: 2px 7px; border-radius: 8px; font-size: 9px; font-weight: 600; }
-  .b-todo { background: #F5F5F5; color: #757575; }
-  .b-doing { background: #E3F2FD; color: #1565C0; }
-  .b-review { background: #FFF3E0; color: #E65100; }
-  .b-done { background: #E8F5E9; color: #2E7D32; }
-  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 100; align-items: center; justify-content: center; }
-  .modal-overlay.show { display: flex; }
-  .modal { background: #fff; border-radius: 12px; padding: 22px; width: 90%; max-width: 560px; max-height: 80vh; overflow-y: auto; }
-  .modal h3 { margin-bottom: 12px; font-size: 15px; }
-  .modal .close-btn { float: right; background: none; border: none; font-size: 20px; cursor: pointer; color: #888; }
-  /* Gantt */
-  .gantt-wrap { overflow-x: auto; }
-  .gt { border-collapse: collapse; font-size: 10px; width: max-content; min-width: 100%; }
-  .gt th, .gt td { border: 1px solid #e2e8f0; padding: 0; }
-  .gt .g-n { position: sticky; left: 0; z-index: 2; background: #fff; padding: 3px 6px; min-width: 260px; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
-  .gt .g-p { position: sticky; left: 0; z-index: 2; background: #f1f5f9; padding: 4px 8px; font-weight: 700; font-size: 12px; min-width: 260px; }
-  .gt .g-h { background: #1e293b; color: #94a3b8; font-size: 9px; padding: 3px 1px; text-align: center; position: sticky; top: 0; z-index: 3; }
-  .gt .g-h.g-hn { position: sticky; left: 0; z-index: 5; min-width: 260px; }
-  .gt .g-w { width: 32px; min-width: 32px; }
-  /* Weekly */
-  .wk-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 18px; }
-  .wk-card { background: #fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.07); }
-  .wk-card h4 { font-size: 12px; color: #64748b; margin-bottom: 8px; }
-  .wk-card .wk-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 12px; border-bottom: 1px solid #f1f5f9; }
-  .wk-card .wk-row:last-child { border-bottom: none; }
-  .wk-val { font-weight: 700; }
-  .delta { font-weight: 600; font-size: 11px; }
-  .delta.pos { color: #4CAF50; }
-  .delta.neg { color: #F44336; }
-  .delta.zero { color: #9E9E9E; }
-  .msg { text-align: center; padding: 50px 20px; color: #888; font-size: 14px; }
-  .msg.error { color: #F44336; }
-  @media (max-width: 768px) { .charts-row { grid-template-columns: 1fr; } .cards { grid-template-columns: repeat(2, 1fr); } }
+:root {
+  --bg: #f0f2f5; --surface: #fff; --surface-alt: #f8f9fb;
+  --border: #e2e8f0; --border-strong: #cbd5e1;
+  --text: #1e293b; --text-sub: #64748b; --text-muted: #94a3b8;
+  --primary: #2563eb; --primary-light: #dbeafe;
+  --green: #16a34a; --green-light: #dcfce7;
+  --amber: #d97706; --amber-light: #fef3c7;
+  --red: #dc2626; --red-light: #fee2e2;
+  --gray: #6b7280; --gray-light: #f3f4f6;
+  --radius: 10px; --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background:var(--bg); color:var(--text); font-size:13px; }
+
+/* Header */
+.header { background:linear-gradient(135deg,#0f172a,#1e293b); color:#fff; padding:0 24px; display:flex; align-items:stretch; min-height:56px; }
+.header-left { display:flex; align-items:center; gap:12px; padding:12px 0; }
+.header-left h1 { font-size:16px; font-weight:700; letter-spacing:-.3px; }
+.header-left .sub { font-size:10px; color:var(--text-muted); margin-top:1px; }
+.header-right { margin-left:auto; display:flex; align-items:center; gap:12px; }
+.snap-sel { display:flex; align-items:center; gap:8px; }
+.snap-sel label { font-size:10px; color:var(--text-muted); white-space:nowrap; }
+.snap-sel select { background:#334155; color:#e2e8f0; border:1px solid #475569; border-radius:6px; padding:5px 10px; font-size:11px; cursor:pointer; outline:none; }
+.snap-sel select:hover { border-color:#64748b; }
+.snap-badge { font-size:10px; color:var(--text-muted); background:#334155; padding:3px 8px; border-radius:5px; white-space:nowrap; }
+
+/* Tabs */
+.tabs { display:flex; background:var(--surface); border-bottom:1px solid var(--border); padding:0 24px; overflow-x:auto; gap:2px; }
+.tab { padding:12px 16px; cursor:pointer; font-size:12px; font-weight:500; color:var(--text-sub); border-bottom:2px solid transparent; transition:all .15s; white-space:nowrap; }
+.tab:hover { color:var(--primary); background:var(--primary-light); }
+.tab.active { color:var(--primary); border-bottom-color:var(--primary); font-weight:600; }
+
+/* Content */
+.content { max-width:1500px; margin:0 auto; padding:20px 24px; }
+.tab-panel { display:none; } .tab-panel.active { display:block; }
+
+/* Section box */
+.section { background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px; margin-bottom:16px; border:1px solid var(--border); }
+.section-title { font-size:13px; font-weight:600; color:var(--text); margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+.section-title::before { content:''; width:3px; height:14px; background:var(--primary); border-radius:2px; }
+.section-sub { font-size:10px; color:var(--text-muted); font-weight:400; }
+
+/* Cards */
+.cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-bottom:16px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px; text-align:center; box-shadow:var(--shadow); }
+.card .value { font-size:24px; font-weight:700; margin:4px 0 2px; line-height:1; }
+.card .label { font-size:10px; color:var(--text-muted); }
+
+/* Phase bars */
+.phase-row { display:flex; align-items:center; margin-bottom:7px; }
+.phase-row .pn { width:100px; font-size:11px; font-weight:500; color:var(--text-sub); }
+.phase-row .bar-bg { flex:1; height:18px; background:var(--bg); border-radius:9px; overflow:hidden; position:relative; }
+.phase-row .bar-fill { height:100%; border-radius:9px; position:absolute; top:0; left:0; display:flex; align-items:center; justify-content:flex-end; padding-right:6px; font-size:9px; color:#fff; font-weight:600; transition:width .5s; }
+.phase-row .pct { width:44px; text-align:right; font-size:11px; font-weight:600; }
+.phase-row .cnt { width:60px; text-align:right; font-size:10px; color:var(--text-muted); }
+
+/* Charts */
+.charts-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; }
+.chart-box { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px; box-shadow:var(--shadow); }
+.chart-box .section-title { margin-bottom:8px; }
+.chart-box canvas { max-height:220px; }
+
+/* Tables */
+.tbl-wrap { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px; box-shadow:var(--shadow); overflow-x:auto; margin-bottom:14px; }
+.tbl-wrap .section-title { margin-bottom:8px; }
+.filters { display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; }
+.filters select, .filters input { padding:5px 10px; border:1px solid var(--border); border-radius:6px; font-size:11px; background:var(--surface); outline:none; }
+.filters input:focus, .filters select:focus { border-color:var(--primary); }
+table { width:100%; border-collapse:collapse; font-size:11px; }
+th { background:var(--surface-alt); padding:8px; text-align:left; font-weight:600; border-bottom:2px solid var(--border); white-space:nowrap; color:var(--text-sub); font-size:10px; text-transform:uppercase; letter-spacing:.3px; }
+td { padding:7px 8px; border-bottom:1px solid var(--bg); }
+tr:hover td { background:#f8faff; }
+
+/* Badges */
+.badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:9px; font-weight:600; letter-spacing:.2px; }
+.b-todo { background:var(--gray-light); color:var(--gray); }
+.b-doing { background:var(--primary-light); color:var(--primary); }
+.b-review { background:var(--amber-light); color:var(--amber); }
+.b-done { background:var(--green-light); color:var(--green); }
+
+/* Modal */
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:100; align-items:center; justify-content:center; backdrop-filter:blur(2px); }
+.modal-overlay.show { display:flex; }
+.modal { background:var(--surface); border-radius:12px; padding:24px; width:90%; max-width:560px; max-height:80vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.2); }
+.modal h3 { margin-bottom:14px; font-size:15px; }
+.modal .close-btn { float:right; background:none; border:none; font-size:22px; cursor:pointer; color:var(--text-muted); line-height:1; }
+.modal .close-btn:hover { color:var(--text); }
+
+/* Gantt */
+.gantt-wrap { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
+.gantt-legend { display:flex; gap:14px; padding:10px 16px; font-size:10px; color:var(--text-sub); border-bottom:1px solid var(--border); flex-wrap:wrap; align-items:center; }
+.gantt-legend span { display:flex; align-items:center; gap:4px; }
+.gantt-legend .gl-box { width:16px; height:10px; border-radius:2px; }
+.gt { border-collapse:collapse; font-size:10px; width:max-content; min-width:100%; }
+.gt th, .gt td { border:1px solid var(--border); padding:0; }
+.gt .g-n { position:sticky; left:0; z-index:2; background:var(--surface); padding:4px 8px; min-width:280px; max-width:340px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; border-right:2px solid var(--border-strong); }
+.gt .g-p { position:sticky; left:0; z-index:2; background:var(--surface-alt); padding:5px 8px; font-weight:700; font-size:12px; min-width:280px; border-right:2px solid var(--border-strong); }
+.gt .g-hm { background:#0f172a; color:#e2e8f0; font-size:11px; font-weight:600; padding:6px 2px; text-align:center; position:sticky; top:0; z-index:3; letter-spacing:.5px; border-bottom:none; }
+.gt .g-hm.g-hn { position:sticky; left:0; z-index:5; min-width:280px; border-right:2px solid #475569; }
+.gt .g-h { background:#1e293b; color:var(--text-muted); font-size:9px; padding:4px 1px; text-align:center; position:sticky; top:30px; z-index:3; }
+.gt .g-h.g-hn { position:sticky; left:0; z-index:5; min-width:280px; border-right:2px solid #475569; }
+.gt .g-w { width:38px; min-width:38px; }
+.gt .g-month-border { border-left:2px solid var(--text-muted) !important; }
+.gt td.g-today-col { background:#fffde7; }
+
+/* Weekly */
+.wk-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:16px; }
+.wk-header select { padding:6px 12px; border:1px solid var(--border); border-radius:6px; font-size:12px; background:var(--surface); cursor:pointer; }
+.wk-summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; margin-bottom:16px; }
+.wk-sum-item { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px; box-shadow:var(--shadow); text-align:center; }
+.wk-sum-item .wk-sum-label { font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.5px; }
+.wk-sum-item .wk-sum-val { font-size:22px; font-weight:700; margin:4px 0 2px; line-height:1; }
+.wk-sum-item .wk-sum-delta { font-size:11px; font-weight:600; }
+.wk-sum-item .wk-sum-delta.up { color:var(--green); }
+.wk-sum-item .wk-sum-delta.down { color:var(--red); }
+.wk-sum-item .wk-sum-delta.flat { color:var(--gray); }
+.wk-sum-item.highlight { border-left:3px solid var(--primary); }
+.wk-phase-bar { display:flex; align-items:center; margin-bottom:6px; }
+.wk-phase-bar .wk-pb-name { width:100px; font-size:11px; font-weight:500; }
+.wk-phase-bar .wk-pb-track { flex:1; height:20px; background:var(--bg); border-radius:6px; position:relative; overflow:hidden; }
+.wk-phase-bar .wk-pb-prev { position:absolute; top:0; left:0; height:100%; border-radius:6px; border-right:2px dashed rgba(0,0,0,.15); }
+.wk-phase-bar .wk-pb-cur { position:absolute; top:0; left:0; height:100%; border-radius:6px; display:flex; align-items:center; justify-content:flex-end; padding-right:5px; font-size:9px; color:#fff; font-weight:600; transition:width .5s; }
+.wk-phase-bar .wk-pb-info { width:140px; text-align:right; font-size:10px; color:var(--text-sub); }
+.chg-row { display:flex; align-items:center; gap:8px; padding:7px 8px; border-bottom:1px solid var(--bg); font-size:11px; transition:background .1s; }
+.chg-row:last-child { border-bottom:none; }
+.chg-row:hover { background:var(--surface-alt); }
+.chg-icon { width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; flex-shrink:0; font-weight:700; }
+.chg-icon.status { background:var(--primary-light); color:var(--primary); }
+.chg-icon.new { background:var(--green-light); color:var(--green); }
+.chg-icon.removed { background:var(--red-light); color:var(--red); }
+.chg-key { font-weight:600; color:var(--primary); cursor:pointer; text-decoration:none; min-width:90px; }
+.chg-arrow { color:var(--text-muted); font-size:13px; }
+.delta { font-weight:600; font-size:11px; }
+.delta.pos { color:var(--green); }
+.delta.neg { color:var(--red); }
+.delta.zero { color:var(--gray); }
+.pill-btn { padding:5px 12px; border:1px solid var(--border); border-radius:16px; font-size:11px; cursor:pointer; background:var(--surface); color:var(--text-sub); font-weight:500; transition:all .15s; }
+.pill-btn:hover { border-color:var(--primary); color:var(--primary); }
+.pill-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+/* Overall progress */
+.progress-hero { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px; margin-bottom:16px; display:flex; align-items:center; gap:24px; flex-wrap:wrap; }
+.progress-ring { position:relative; width:120px; height:120px; flex-shrink:0; }
+.progress-ring svg { transform:rotate(-90deg); }
+.progress-ring .ring-bg { fill:none; stroke:var(--bg); stroke-width:10; }
+.progress-ring .ring-fill { fill:none; stroke-width:10; stroke-linecap:round; transition:stroke-dashoffset .8s ease; }
+.progress-ring .ring-center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.progress-ring .ring-pct { font-size:28px; font-weight:800; line-height:1; }
+.progress-ring .ring-label { font-size:10px; color:var(--text-muted); margin-top:2px; }
+.progress-stats { flex:1; min-width:200px; }
+.progress-stats .ps-title { font-size:14px; font-weight:600; margin-bottom:10px; color:var(--text); }
+.progress-stats .ps-row { display:flex; justify-content:space-between; align-items:center; padding:5px 0; font-size:12px; border-bottom:1px solid var(--bg); }
+.progress-stats .ps-row:last-child { border-bottom:none; }
+.progress-stats .ps-val { font-weight:600; }
+.progress-bar-full { height:8px; background:var(--bg); border-radius:4px; overflow:hidden; margin-top:8px; display:flex; }
+.progress-bar-full div { height:100%; transition:width .5s; }
+.msg { text-align:center; padding:50px 20px; color:var(--text-muted); font-size:14px; }
+.msg.error { color:var(--red); }
+@media (max-width:768px) { .charts-row { grid-template-columns:1fr; } .cards { grid-template-columns:repeat(2,1fr); } .header { flex-direction:column; gap:8px; } .header-right { margin-left:0; } }
 </style>
 </head>
 <body>
 <div class="header">
-  <div><h1>GCGF0323 디지털고도화 WBS 대시보드</h1><div class="sub">경기신용보증재단 디지털고도화 구축 프로젝트</div></div>
-  <div class="info" id="snapInfo">로딩 중...</div>
+  <div class="header-left">
+    <div><h1>GCGF0323 디지털고도화 WBS</h1><div class="sub">경기신용보증재단 디지털고도화 구축 프로젝트</div></div>
+  </div>
+  <div class="header-right">
+    <div class="snap-sel">
+      <label>스냅샷</label>
+      <select id="snapSelector" onchange="switchSnapshot(this.value)"></select>
+    </div>
+    <div class="snap-badge" id="snapBadge">로딩 중...</div>
+  </div>
 </div>
 <div class="tabs">
   <div class="tab active" data-tab="overview">전체 현황</div>
@@ -92,23 +188,24 @@
 </div>
 <div class="content">
   <div class="tab-panel active" id="panel-overview">
+    <div id="progressHero"></div>
     <div class="cards" id="overviewCards"></div>
-    <div class="phase-bars"><h3>페이즈별 진척률</h3><div id="phaseBarList"></div></div>
+    <div class="section"><div class="section-title">페이즈별 진척률</div><div id="phaseBarList"></div></div>
     <div class="charts-row">
-      <div class="chart-box"><h3>상태 분포</h3><canvas id="statusChart"></canvas></div>
-      <div class="chart-box"><h3>업무영역별 이슈 수</h3><canvas id="areaChart"></canvas></div>
+      <div class="chart-box"><div class="section-title">상태 분포</div><canvas id="statusChart"></canvas></div>
+      <div class="chart-box"><div class="section-title">업무영역별 이슈 수</div><canvas id="areaChart"></canvas></div>
     </div>
   </div>
   <div class="tab-panel" id="panel-weekly">
-    <div id="weeklyContent"><div class="msg">스냅샷 로딩 중...</div></div>
+    <div id="weeklyContent"><div class="msg">로딩 중...</div></div>
   </div>
   <div class="tab-panel" id="panel-gantt">
-    <div class="tbl-wrap gantt-wrap" id="ganttWrap"></div>
+    <div class="gantt-wrap" id="ganttWrap"></div>
   </div>
   <div class="tab-panel" id="panel-phase"><div id="phaseDetail"></div></div>
   <div class="tab-panel" id="panel-tasks">
     <div class="tbl-wrap">
-      <h3>전체 이슈</h3>
+      <div class="section-title">전체 이슈</div>
       <div class="filters">
         <input type="text" id="taskSearch" placeholder="검색 (KEY, 제목, 담당자)">
         <select id="taskPhase"><option value="">전체 페이즈</option></select>
@@ -124,15 +221,14 @@
 </div>
 
 <script>
-const PS = new Date('2026-04-02'), TW = 30, JB = 'https://gcgfmobile.atlassian.net';
-const PM = {
+const PS=new Date('2026-04-02'), TW=30, JB='https://gcgfmobile.atlassian.net';
+const PM={
   '0':{n:'PMO/사업관리',c:'#64748b'},'1':{n:'분석',c:'#3b82f6'},'2':{n:'설계',c:'#8b5cf6'},
   '3':{n:'개발/구축',c:'#10b981'},'4':{n:'테스트',c:'#f59e0b'},'5':{n:'이행/오픈',c:'#ef4444'},
   '6':{n:'안정화/성과',c:'#06b6d4'},'7':{n:'종료',c:'#78716c'}
 };
 const SL={todo:'대기',doing:'진행',review:'검토',done:'완료'};
 const SC={todo:'b-todo',doing:'b-doing',review:'b-review',done:'b-done'};
-const STC={'대기':'#9E9E9E','진행':'#2196F3','검토':'#FF9800','완료':'#4CAF50'};
 const AKW={
   '이지원':['이지원','마이다스','법인','공동대표','ocr','챗봇','팩토리','상품','app','고도화','보증신청','사후관리','native','보증상품'],
   '사이버보증':['사이버','보증','전자서명','재무자료','마이데이터'],
@@ -141,7 +237,7 @@ const AKW={
   'PMO':['킥오프','착수','사업수행','보고','관리','품질','감리','산출물','교육','안정화','모니터링','결함','kpi','개선','종료','납품','완료보고','요구사항추적']
 };
 
-let allSnapshots = {}, curIssues = [], latestSnap = null;
+let allSnapshots={}, curIssues=[], latestSnap=null, selectedSnapDate=null, snapshotDates=[];
 
 function wbs(i){const l=(i.labels||[]).find(x=>x.startsWith('WBS_'));return l?l.replace('WBS_','').replace(/_/g,'.'):null;}
 function pn(i){const c=wbs(i);return c?c.split('.')[0]:null;}
@@ -152,12 +248,7 @@ function wsd(w){const d=new Date(PS);d.setDate(d.getDate()+(w-1)*7);return d;}
 function fd(d){return(d.getMonth()+1)+'/'+d.getDate();}
 function badge(s){return `<span class="badge ${SC[s]||'b-todo'}">${SL[s]||s}</span>`;}
 function deltaHtml(v){if(v>0)return `<span class="delta pos">+${v}</span>`;if(v<0)return `<span class="delta neg">${v}</span>`;return `<span class="delta zero">-</span>`;}
-
-// Bar color by status: done=full opacity, doing=0.7, todo=0.35
-function barColor(baseColor, status) {
-  const opacity = status === 'done' ? 1.0 : status === 'doing' || status === 'review' ? 0.7 : 0.35;
-  return { color: baseColor, opacity };
-}
+function barColor(base,st){return{color:base,opacity:st==='done'?1:st==='doing'||st==='review'?0.7:0.35};}
 
 // Tab switching
 document.querySelectorAll('.tab').forEach(tab=>{
@@ -169,7 +260,16 @@ document.querySelectorAll('.tab').forEach(tab=>{
   });
 });
 
-// Load
+// === Snapshot selector ===
+function switchSnapshot(date){
+  selectedSnapDate=date;
+  const data=allSnapshots[date];
+  curIssues=data.issues.filter(i=>(i.labels||[]).some(l=>l.startsWith('WBS_')));
+  document.getElementById('snapBadge').textContent=`${date} | ${curIssues.length}건 | 총 ${snapshotDates.length}개 스냅샷`;
+  renderAll();
+}
+
+// === Load ===
 async function loadData(){
   try{
     const ir=await fetch('docs/data/snapshots/index.json?'+Date.now());
@@ -177,19 +277,28 @@ async function loadData(){
     const idx=await ir.json();
     if(!idx.snapshots||!idx.snapshots.length) throw new Error('스냅샷이 없습니다.');
 
-    // Load all snapshots
-    for(const s of idx.snapshots){
+    // Load all snapshots (max 10 recent)
+    const snaps=idx.snapshots.slice(0,10);
+    for(const s of snaps){
       const r=await fetch('docs/data/snapshots/'+s.file+'?'+Date.now());
       allSnapshots[s.date]=await r.json();
     }
-    latestSnap=idx.snapshots[0];
-    const data=allSnapshots[latestSnap.date];
-    // Filter: only WBS-labeled, exclude done duplicates from old snapshots
-    curIssues=data.issues.filter(i=>(i.labels||[]).some(l=>l.startsWith('WBS_')));
+    snapshotDates=snaps.map(s=>s.date);
 
-    document.getElementById('snapInfo').textContent=
-      `최신: ${latestSnap.date} | 이슈: ${curIssues.length}건 | 스냅샷: ${idx.snapshots.length}개`;
-    renderAll();
+    // Populate selector
+    const sel=document.getElementById('snapSelector');
+    snaps.forEach((s,i)=>{
+      const o=document.createElement('option');
+      o.value=s.date;
+      const d=new Date(s.date+'T12:00:00');
+      const dayNames=['일','월','화','수','목','금','토'];
+      o.textContent=`${s.date} (${dayNames[d.getDay()]}) — ${s.count}건`;
+      if(i===0) o.selected=true;
+      sel.appendChild(o);
+    });
+
+    latestSnap=snaps[0];
+    switchSnapshot(latestSnap.date);
   }catch(e){
     document.querySelector('.content').innerHTML=`<div class="msg error">${e.message}</div>`;
   }
@@ -197,7 +306,7 @@ async function loadData(){
 
 function renderAll(){renderOverview();renderWeekly();renderGantt();renderPhaseDetail();renderTasks();}
 
-// --- Overview ---
+// === Overview ===
 let sc1=null,sc2=null;
 function renderOverview(){
   const tot=curIssues.length;
@@ -205,14 +314,55 @@ function renderOverview(){
   const doing=curIssues.filter(i=>i.status_wbs==='doing').length;
   const review=curIssues.filter(i=>i.status_wbs==='review').length;
   const todo=curIssues.filter(i=>i.status_wbs==='todo').length;
+  const pct=tot?(done/tot*100).toFixed(1):0;
+  const actPctAll=tot?((done+doing+review)/tot*100).toFixed(1):0;
+
+  // 경과일/주차 계산
+  const today=new Date();
+  const projStart=new Date('2026-04-02'), projEnd=new Date('2026-10-30');
+  const elapsed=Math.max(0,Math.floor((today-projStart)/864e5));
+  const totalDays=Math.floor((projEnd-projStart)/864e5);
+  const remaining=Math.max(0,totalDays-elapsed);
+  const elapsedW=Math.min(Math.floor(elapsed/7)+1,TW);
+  const timePct=totalDays?(elapsed/totalDays*100).toFixed(1):0;
+
+  // Ring SVG
+  const R=50, C=2*Math.PI*R;
+  const donePct=parseFloat(pct);
+  const ringColor=donePct>=80?'var(--green)':donePct>=40?'var(--primary)':donePct>=10?'var(--amber)':'var(--red)';
+  const dashoff=C-(donePct/100)*C;
+
+  document.getElementById('progressHero').innerHTML=`<div class="progress-hero">
+    <div class="progress-ring">
+      <svg width="120" height="120" viewBox="0 0 120 120">
+        <circle class="ring-bg" cx="60" cy="60" r="${R}"/>
+        <circle class="ring-fill" cx="60" cy="60" r="${R}" stroke="${ringColor}" stroke-dasharray="${C}" stroke-dashoffset="${dashoff}"/>
+      </svg>
+      <div class="ring-center"><div class="ring-pct" style="color:${ringColor}">${pct}%</div><div class="ring-label">전체 완료율</div></div>
+    </div>
+    <div class="progress-stats">
+      <div class="ps-title">프로젝트 진행 현황</div>
+      <div class="ps-row"><span>기간</span><span class="ps-val">2026-04-02 ~ 10-30 (${TW}주)</span></div>
+      <div class="ps-row"><span>경과</span><span class="ps-val">${elapsed}일 (W${elapsedW}) / 잔여 ${remaining}일</span></div>
+      <div class="ps-row"><span>기간 소진율</span><span class="ps-val" style="color:${parseFloat(timePct)>parseFloat(actPctAll)?'var(--red)':'var(--green)'}">${timePct}%</span></div>
+      <div class="ps-row"><span>착수율 (완료+진행+검토)</span><span class="ps-val" style="color:var(--primary)">${actPctAll}% (${done+doing+review}/${tot}건)</span></div>
+      <div class="ps-row"><span>완료율</span><span class="ps-val" style="color:var(--green)">${pct}% (${done}/${tot}건)</span></div>
+      <div class="progress-bar-full" title="완료 ${pct}% / 진행 ${(tot?(doing/tot*100):0).toFixed(1)}% / 검토 ${(tot?(review/tot*100):0).toFixed(1)}%">
+        <div style="width:${pct}%;background:var(--green)"></div>
+        <div style="width:${tot?(review/tot*100):0}%;background:var(--amber)"></div>
+        <div style="width:${tot?(doing/tot*100):0}%;background:#2196F3"></div>
+      </div>
+    </div>
+  </div>`;
+
   document.getElementById('overviewCards').innerHTML=`
-    <div class="card"><div class="label">전체 이슈</div><div class="value" style="color:#1976D2">${tot}</div><div class="label">원본 WBS</div></div>
-    <div class="card"><div class="label">진행 중</div><div class="value" style="color:#2196F3">${doing}</div></div>
-    <div class="card"><div class="label">검토</div><div class="value" style="color:#FF9800">${review}</div></div>
-    <div class="card"><div class="label">완료</div><div class="value" style="color:#4CAF50">${done}</div><div class="label">${tot?(done/tot*100).toFixed(1):0}%</div></div>
-    <div class="card"><div class="label">대기</div><div class="value" style="color:#9E9E9E">${todo}</div></div>
-    <div class="card"><div class="label">기간</div><div class="value" style="font-size:18px;color:#333">${TW}주</div><div class="label">04-02 ~ 10-30</div></div>`;
-  // Phase bars
+    <div class="card"><div class="label">전체 이슈</div><div class="value" style="color:var(--primary)">${tot}</div></div>
+    <div class="card"><div class="label">완료</div><div class="value" style="color:var(--green)">${done}</div><div class="label">${pct}%</div></div>
+    <div class="card"><div class="label">진행</div><div class="value" style="color:#2196F3">${doing}</div></div>
+    <div class="card"><div class="label">검토</div><div class="value" style="color:var(--amber)">${review}</div></div>
+    <div class="card"><div class="label">대기</div><div class="value" style="color:var(--gray)">${todo}</div></div>
+    <div class="card"><div class="label">경과 주차</div><div class="value" style="font-size:18px">W${elapsedW}<span style="font-size:12px;color:var(--text-muted)">/${TW}</span></div><div class="label">잔여 ${remaining}일</div></div>`;
+
   document.getElementById('phaseBarList').innerHTML=Object.entries(PM).map(([p,v])=>{
     const pi=curIssues.filter(i=>pn(i)===p),cnt=pi.length;
     const dn=pi.filter(i=>i.status_wbs==='done').length;
@@ -220,214 +370,329 @@ function renderOverview(){
     const pct=cnt?(dn/cnt*100):0;
     const actPct=cnt?((dn+dg)/cnt*100):0;
     return `<div class="phase-row">
-      <div class="pn">${v.n}</div>
+      <div class="pn" style="color:${v.c}">${v.n}</div>
       <div class="bar-bg">
-        <div class="bar-fill" style="width:${actPct}%;background:${v.c};opacity:0.25"></div>
+        <div class="bar-fill" style="width:${actPct}%;background:${v.c};opacity:0.2"></div>
         <div class="bar-fill" style="width:${pct}%;background:${v.c}">${pct>8?pct.toFixed(0)+'%':''}</div>
       </div>
       <div class="pct">${pct.toFixed(0)}%</div>
       <div class="cnt">${dn}/${cnt}건</div>
     </div>`;
   }).join('');
-  // Charts
+
   if(sc1)sc1.destroy();
-  sc1=new Chart(document.getElementById('statusChart'),{type:'doughnut',data:{labels:['대기','진행','검토','완료'],datasets:[{data:[todo,doing,review,done],backgroundColor:['#9E9E9E','#2196F3','#FF9800','#4CAF50']}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}}}});
+  sc1=new Chart(document.getElementById('statusChart'),{type:'doughnut',data:{labels:['대기','진행','검토','완료'],datasets:[{data:[todo,doing,review,done],backgroundColor:['#9E9E9E','#2196F3','#F59E0B','#16A34A'],borderWidth:0}]},options:{responsive:true,cutout:'55%',plugins:{legend:{position:'bottom',labels:{font:{size:10},padding:12,usePointStyle:true,pointStyle:'circle'}}}}});
   const am={};curIssues.forEach(i=>{const a=area(i);am[a]=(am[a]||0)+1;});
   const al=Object.keys(am).sort((a,b)=>am[b]-am[a]);
   const ac={'이지원':'#3b82f6','사이버보증':'#8b5cf6','콜센터':'#10b981','인프라':'#f59e0b','PMO':'#94a3b8'};
   if(sc2)sc2.destroy();
-  sc2=new Chart(document.getElementById('areaChart'),{type:'bar',data:{labels:al,datasets:[{label:'이슈',data:al.map(a=>am[a]),backgroundColor:al.map(a=>ac[a]||'#ccc')}]},options:{responsive:true,indexAxis:'y',plugins:{legend:{display:false}}}});
+  sc2=new Chart(document.getElementById('areaChart'),{type:'bar',data:{labels:al,datasets:[{label:'이슈',data:al.map(a=>am[a]),backgroundColor:al.map(a=>ac[a]||'#ccc'),borderRadius:4}]},options:{responsive:true,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{grid:{display:false}}}}});
 }
 
-// --- Weekly Analysis ---
-function renderWeekly(){
+// === Weekly Analysis (금~목 기준) ===
+function getWeekFriThu(dateStr){
+  const d=new Date(dateStr+'T12:00:00');
+  const day=d.getDay();
+  const offset=(day+2)%7;
+  const fri=new Date(d); fri.setDate(d.getDate()-offset);
+  const thu=new Date(fri); thu.setDate(fri.getDate()+6);
+  return {fri,thu,key:fri.toISOString().slice(0,10)};
+}
+function groupSnapshotsByWeek(){
   const dates=Object.keys(allSnapshots).sort();
-  if(dates.length<2){
-    document.getElementById('weeklyContent').innerHTML='<div class="msg">주간 비교를 위해 최소 2개 스냅샷이 필요합니다.</div>';
+  const weeks={};
+  dates.forEach(d=>{
+    const w=getWeekFriThu(d);
+    if(!weeks[w.key]) weeks[w.key]={fri:w.fri,thu:w.thu,snapshots:[]};
+    weeks[w.key].snapshots.push(d);
+  });
+  return Object.entries(weeks).map(([k,v])=>({
+    key:k,fri:v.fri,thu:v.thu,
+    latestDate:v.snapshots.sort().pop(),
+    snapCount:v.snapshots.length
+  })).sort((a,b)=>b.key.localeCompare(a.key));
+}
+function fmtDate(d){return(d.getMonth()+1)+'/'+d.getDate();}
+function wkDeltaBlock(cur,prev,unit=''){
+  const diff=cur-prev;
+  const cls=diff>0?'up':diff<0?'down':'flat';
+  const sign=diff>0?'+':'';
+  const arrow=diff>0?'▲':diff<0?'▼':'—';
+  return `<span class="wk-sum-delta ${cls}">${arrow} ${sign}${unit==='%'?diff.toFixed(1):diff}${unit}</span>`;
+}
+
+let weeklyChart1=null;
+function renderWeekly(){
+  const weeks=groupSnapshotsByWeek();
+  if(weeks.length<2){
+    document.getElementById('weeklyContent').innerHTML='<div class="msg">주간 비교를 위해 최소 2주의 스냅샷이 필요합니다.</div>';
     return;
   }
-  const cur=dates[dates.length-1]; // latest (2026-04-10, Thursday)
-  const prev=dates[dates.length-2]; // previous (2026-03-19)
+  let selHtml='<select id="weekSelector" onchange="renderWeeklyDetail()">';
+  weeks.forEach((w,i)=>{
+    if(i>=weeks.length-1) return;
+    selHtml+=`<option value="${i}" ${i===0?'selected':''}>${fmtDate(w.fri)}(금) ~ ${fmtDate(w.thu)}(목)</option>`;
+  });
+  selHtml+='</select>';
+  document.getElementById('weeklyContent').innerHTML=`
+    <div class="wk-header">
+      <div class="section-title" style="margin-bottom:0">주간 진척 분석 <span class="section-sub">(금~목 기준)</span></div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:11px;color:var(--text-sub)">주차:</span>${selHtml}
+      </div>
+    </div>
+    <div id="weeklyDetailContent"></div>`;
+  window._weeklyWeeks=weeks;
+  renderWeeklyDetail();
+}
 
-  const curData=allSnapshots[cur].issues.filter(i=>(i.labels||[]).some(l=>l.startsWith('WBS_')));
-  const prevData=allSnapshots[prev].issues.filter(i=>(i.labels||[]).some(l=>l.startsWith('WBS_')));
-
-  // Build maps
+function renderWeeklyDetail(){
+  const weeks=window._weeklyWeeks;
+  const idx=parseInt(document.getElementById('weekSelector').value);
+  const curWeek=weeks[idx], prevWeek=weeks[idx+1];
+  const curDate=curWeek.latestDate, prevDate=prevWeek.latestDate;
+  const curData=allSnapshots[curDate].issues.filter(i=>(i.labels||[]).some(l=>l.startsWith('WBS_')));
+  const prevData=allSnapshots[prevDate].issues.filter(i=>(i.labels||[]).some(l=>l.startsWith('WBS_')));
   const curMap=Object.fromEntries(curData.map(i=>[i.key,i]));
   const prevMap=Object.fromEntries(prevData.map(i=>[i.key,i]));
 
-  // Stats
   const curSt={todo:0,doing:0,review:0,done:0};
   const prevSt={todo:0,doing:0,review:0,done:0};
-  curData.forEach(i=>curSt[i.status_wbs]=(curSt[i.status_wbs]||0)+1);
-  prevData.forEach(i=>prevSt[i.status_wbs]=(prevSt[i.status_wbs]||0)+1);
+  curData.forEach(i=>{curSt[i.status_wbs]=(curSt[i.status_wbs]||0)+1;});
+  prevData.forEach(i=>{prevSt[i.status_wbs]=(prevSt[i.status_wbs]||0)+1;});
+  const curDR=curData.length?((curSt.done||0)/curData.length*100):0;
+  const prevDR=prevData.length?((prevSt.done||0)/prevData.length*100):0;
 
-  // Changes
-  const statusChanges=[];
-  const newIssues=[];
-  const removedIssues=[];
+  const statusChanges=[],newIssues=[],removedIssues=[];
   curData.forEach(i=>{
     const p=prevMap[i.key];
     if(!p) newIssues.push(i);
-    else if(p.status_wbs!==i.status_wbs) statusChanges.push({key:i.key,summary:i.summary,from:p.status_wbs,to:i.status_wbs});
+    else if(p.status_wbs!==i.status_wbs) statusChanges.push({key:i.key,summary:i.summary,from:p.status_wbs,to:i.status_wbs,phase:pName(i)});
   });
   prevData.forEach(i=>{if(!curMap[i.key])removedIssues.push(i);});
+  const totalChg=statusChanges.length+newIssues.length+removedIssues.length;
 
-  // Phase comparison
   const phaseComp=Object.entries(PM).map(([p,v])=>{
-    const curP=curData.filter(i=>pn(i)===p);
-    const prevP=prevData.filter(i=>pn(i)===p);
-    const curDone=curP.filter(i=>i.status_wbs==='done').length;
-    const prevDone=prevP.filter(i=>i.status_wbs==='done').length;
-    const curDoing=curP.filter(i=>i.status_wbs==='doing'||i.status_wbs==='review').length;
-    const prevDoing=prevP.filter(i=>i.status_wbs==='doing'||i.status_wbs==='review').length;
-    return {phase:v.n,color:v.c,curTotal:curP.length,prevTotal:prevP.length,curDone,prevDone,curDoing,prevDoing};
-  });
+    const curP=curData.filter(i=>pn(i)===p),prevP=prevData.filter(i=>pn(i)===p);
+    return {phase:v.n,color:v.c,
+      curTotal:curP.length,prevTotal:prevP.length,
+      curDone:curP.filter(i=>i.status_wbs==='done').length,
+      prevDone:prevP.filter(i=>i.status_wbs==='done').length,
+      curAct:curP.filter(i=>i.status_wbs==='doing'||i.status_wbs==='review').length,
+      prevAct:prevP.filter(i=>i.status_wbs==='doing'||i.status_wbs==='review').length};
+  }).filter(p=>p.curTotal>0||p.prevTotal>0);
 
   let html=`
-  <h3 style="margin-bottom:14px;font-size:15px">주간 진척 분석 <span style="font-size:12px;color:#64748b;font-weight:400">${prev} &rarr; ${cur}</span></h3>
-
-  <div class="wk-cards">
-    <div class="wk-card">
-      <h4>전체 상태 변화</h4>
-      <div class="wk-row"><span>전체 이슈</span><span class="wk-val">${prevData.length} &rarr; ${curData.length} ${deltaHtml(curData.length-prevData.length)}</span></div>
-      <div class="wk-row"><span>완료</span><span class="wk-val">${prevSt.done||0} &rarr; ${curSt.done||0} ${deltaHtml((curSt.done||0)-(prevSt.done||0))}</span></div>
-      <div class="wk-row"><span>진행</span><span class="wk-val">${prevSt.doing||0} &rarr; ${curSt.doing||0} ${deltaHtml((curSt.doing||0)-(prevSt.doing||0))}</span></div>
-      <div class="wk-row"><span>검토</span><span class="wk-val">${prevSt.review||0} &rarr; ${curSt.review||0} ${deltaHtml((curSt.review||0)-(prevSt.review||0))}</span></div>
-      <div class="wk-row"><span>대기</span><span class="wk-val">${prevSt.todo||0} &rarr; ${curSt.todo||0} ${deltaHtml((curSt.todo||0)-(prevSt.todo||0))}</span></div>
-    </div>
-
-    <div class="wk-card">
-      <h4>완료율</h4>
-      <div class="wk-row"><span>이전</span><span class="wk-val">${prevData.length?(((prevSt.done||0)/prevData.length)*100).toFixed(1):0}%</span></div>
-      <div class="wk-row"><span>현재</span><span class="wk-val">${curData.length?(((curSt.done||0)/curData.length)*100).toFixed(1):0}%</span></div>
-      <div class="wk-row"><span>변동</span><span class="wk-val">${deltaHtml(
-        (curData.length?((curSt.done||0)/curData.length*100):0) - (prevData.length?((prevSt.done||0)/prevData.length*100):0)
-      )}</span></div>
-    </div>
-
-    <div class="wk-card">
-      <h4>이슈 변동</h4>
-      <div class="wk-row"><span>상태 변경</span><span class="wk-val" style="color:#2196F3">${statusChanges.length}건</span></div>
-      <div class="wk-row"><span>신규 추가</span><span class="wk-val" style="color:#4CAF50">${newIssues.length}건</span></div>
-      <div class="wk-row"><span>종료/제거</span><span class="wk-val" style="color:#F44336">${removedIssues.length}건</span></div>
-    </div>
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;font-size:12px;color:var(--text-sub);flex-wrap:wrap">
+    <span style="background:var(--primary-light);padding:3px 10px;border-radius:12px;font-weight:500;color:var(--primary)">이번 주: ${fmtDate(curWeek.fri)}(금)~${fmtDate(curWeek.thu)}(목)</span>
+    <span>vs</span>
+    <span style="background:var(--gray-light);padding:3px 10px;border-radius:12px">전 주: ${fmtDate(prevWeek.fri)}(금)~${fmtDate(prevWeek.thu)}(목)</span>
+    <span style="color:var(--text-muted);font-size:10px;margin-left:auto">스냅샷: ${prevDate} → ${curDate}</span>
   </div>
 
-  <div class="tbl-wrap">
-    <h3>페이즈별 비교</h3>
-    <table>
-      <thead><tr><th>페이즈</th><th>이슈 수 (이전→현재)</th><th>완료 (이전→현재)</th><th>진행 (이전→현재)</th><th>완료율 변동</th></tr></thead>
-      <tbody>${phaseComp.map(p=>{
-        const prevPct=p.prevTotal?(p.prevDone/p.prevTotal*100):0;
-        const curPct=p.curTotal?(p.curDone/p.curTotal*100):0;
-        const diff=curPct-prevPct;
-        return `<tr>
-          <td><strong style="color:${p.color}">${p.phase}</strong></td>
-          <td>${p.prevTotal} &rarr; ${p.curTotal} ${deltaHtml(p.curTotal-p.prevTotal)}</td>
-          <td>${p.prevDone} &rarr; ${p.curDone} ${deltaHtml(p.curDone-p.prevDone)}</td>
-          <td>${p.prevDoing} &rarr; ${p.curDoing} ${deltaHtml(p.curDoing-p.prevDoing)}</td>
-          <td>${prevPct.toFixed(0)}% &rarr; ${curPct.toFixed(0)}% ${deltaHtml(parseFloat(diff.toFixed(1)))}</td>
-        </tr>`;
-      }).join('')}</tbody>
-    </table>
+  <div class="wk-summary">
+    <div class="wk-sum-item highlight"><div class="wk-sum-label">전체</div><div class="wk-sum-val" style="color:var(--primary)">${curData.length}</div>${wkDeltaBlock(curData.length,prevData.length)}</div>
+    <div class="wk-sum-item"><div class="wk-sum-label">완료</div><div class="wk-sum-val" style="color:var(--green)">${curSt.done||0}</div>${wkDeltaBlock(curSt.done||0,prevSt.done||0)}</div>
+    <div class="wk-sum-item"><div class="wk-sum-label">진행</div><div class="wk-sum-val" style="color:#2196F3">${curSt.doing||0}</div>${wkDeltaBlock(curSt.doing||0,prevSt.doing||0)}</div>
+    <div class="wk-sum-item"><div class="wk-sum-label">검토</div><div class="wk-sum-val" style="color:var(--amber)">${curSt.review||0}</div>${wkDeltaBlock(curSt.review||0,prevSt.review||0)}</div>
+    <div class="wk-sum-item"><div class="wk-sum-label">대기</div><div class="wk-sum-val" style="color:var(--gray)">${curSt.todo||0}</div>${wkDeltaBlock(curSt.todo||0,prevSt.todo||0)}</div>
+    <div class="wk-sum-item highlight"><div class="wk-sum-label">완료율</div><div class="wk-sum-val">${curDR.toFixed(1)}%</div>${wkDeltaBlock(curDR,prevDR,'%')}</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">페이즈별 완료율 <span class="section-sub">(전주 대비)</span></div>
+    <div style="display:flex;gap:16px;font-size:10px;color:var(--text-muted);margin-bottom:10px">
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:16px;height:6px;background:#cbd5e1;border-radius:2px;opacity:.5"></span>전주</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:16px;height:6px;background:var(--primary);border-radius:2px"></span>이번 주</span>
+    </div>
+    ${phaseComp.map(p=>{
+      const pp=p.prevTotal?(p.prevDone/p.prevTotal*100):0;
+      const cp=p.curTotal?(p.curDone/p.curTotal*100):0;
+      const diff=cp-pp;
+      const dc=diff>0?'pos':diff<0?'neg':'zero';
+      return `<div class="wk-phase-bar">
+        <div class="wk-pb-name" style="color:${p.color}">${p.phase}</div>
+        <div class="wk-pb-track">
+          <div class="wk-pb-prev" style="width:${pp}%;background:${p.color};opacity:0.15"></div>
+          <div class="wk-pb-cur" style="width:${cp}%;background:${p.color};opacity:0.8">${cp>8?cp.toFixed(0)+'%':''}</div>
+        </div>
+        <div class="wk-pb-info">${pp.toFixed(0)}%→${cp.toFixed(0)}% <span class="delta ${dc}">${diff>0?'+':''}${diff.toFixed(1)}%p</span></div>
+      </div>`;
+    }).join('')}
+  </div>
+
+  <div class="charts-row">
+    <div class="chart-box"><div class="section-title">상태별 전주 대비</div><canvas id="weeklyBarChart"></canvas></div>
+    <div class="chart-box">
+      <div class="section-title">주간 변동 요약</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;padding:18px 0;text-align:center">
+        <div><div style="font-size:26px;font-weight:700;color:#2196F3">${statusChanges.length}</div><div style="font-size:10px;color:var(--text-muted)">상태 변경</div></div>
+        <div><div style="font-size:26px;font-weight:700;color:var(--green)">${newIssues.length}</div><div style="font-size:10px;color:var(--text-muted)">신규 추가</div></div>
+        <div><div style="font-size:26px;font-weight:700;color:var(--red)">${removedIssues.length}</div><div style="font-size:10px;color:var(--text-muted)">종료/제거</div></div>
+      </div>
+      <div style="font-size:11px;color:var(--text-sub);text-align:center;padding-top:8px;border-top:1px solid var(--bg)">총 <strong>${totalChg}건</strong> 변동</div>
+    </div>
   </div>`;
 
-  if(statusChanges.length>0){
-    html+=`<div class="tbl-wrap">
-      <h3>상태 변경 이슈 (${statusChanges.length}건)</h3>
-      <table>
-        <thead><tr><th>KEY</th><th>제목</th><th>이전 상태</th><th>&rarr;</th><th>현재 상태</th></tr></thead>
-        <tbody>${statusChanges.map(c=>`<tr>
-          <td><a href="${JB}/browse/${c.key}" target="_blank" style="color:#2563eb;text-decoration:none;font-weight:600">${c.key}</a></td>
-          <td>${c.summary}</td>
-          <td>${badge(c.from)}</td>
-          <td style="text-align:center">&rarr;</td>
-          <td>${badge(c.to)}</td>
-        </tr>`).join('')}</tbody>
-      </table>
-    </div>`;
+  if(totalChg>0){
+    html+=`<div class="tbl-wrap"><div class="section-title">전주 대비 변경 이슈 <span class="section-sub">(${totalChg}건)</span></div>
+    <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+      <button onclick="filterWkChg('all')" class="pill-btn active" data-f="all">전체 ${totalChg}</button>
+      <button onclick="filterWkChg('status')" class="pill-btn" data-f="status">상태변경 ${statusChanges.length}</button>
+      <button onclick="filterWkChg('new')" class="pill-btn" data-f="new">신규 ${newIssues.length}</button>
+      <button onclick="filterWkChg('removed')" class="pill-btn" data-f="removed">종료 ${removedIssues.length}</button>
+    </div><div id="weeklyChangeList">`;
+    statusChanges.forEach(c=>{
+      html+=`<div class="chg-row" data-type="status"><div class="chg-icon status">↻</div><a href="${JB}/browse/${c.key}" target="_blank" class="chg-key">${c.key}</a><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.summary}</span><span style="font-size:10px;color:var(--text-muted);min-width:50px">${c.phase}</span>${badge(c.from)} <span class="chg-arrow">→</span> ${badge(c.to)}</div>`;
+    });
+    newIssues.forEach(i=>{
+      html+=`<div class="chg-row" data-type="new"><div class="chg-icon new">+</div><a href="${JB}/browse/${i.key}" target="_blank" class="chg-key">${i.key}</a><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i.summary}</span><span style="font-size:10px;color:var(--text-muted);min-width:50px">${pName(i)}</span>${badge(i.status_wbs)}</div>`;
+    });
+    removedIssues.forEach(i=>{
+      html+=`<div class="chg-row" data-type="removed"><div class="chg-icon removed">−</div><a href="${JB}/browse/${i.key}" target="_blank" class="chg-key">${i.key}</a><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-muted);text-decoration:line-through">${i.summary}</span><span style="font-size:10px;color:var(--text-muted);min-width:50px">${pName(i)}</span><span style="font-size:10px;color:var(--red)">제거됨</span></div>`;
+    });
+    html+=`</div></div>`;
   }
 
-  if(removedIssues.length>0){
-    html+=`<div class="tbl-wrap">
-      <h3>종료/제거된 이슈 (${removedIssues.length}건) — 중복 정리 등</h3>
-      <p style="font-size:11px;color:#888;margin-bottom:8px">이전 스냅샷에는 있었지만 현재는 없는 이슈 (중복 종료 처리 포함)</p>
-      <div style="font-size:11px;color:#64748b">${removedIssues.length}건의 이슈가 정리되었습니다.</div>
-    </div>`;
-  }
+  html+=`<div class="tbl-wrap"><div class="section-title">페이즈별 상세 비교</div>
+    <table><thead><tr><th>페이즈</th><th>이슈 수</th><th>완료</th><th>진행/검토</th><th>완료율</th><th>변동</th></tr></thead>
+    <tbody>${phaseComp.map(p=>{
+      const pp=p.prevTotal?(p.prevDone/p.prevTotal*100):0;
+      const cp=p.curTotal?(p.curDone/p.curTotal*100):0;
+      const diff=cp-pp;
+      const bg=diff>0?'background:var(--green-light)':diff<0?'background:var(--red-light)':'';
+      return `<tr style="${bg}"><td><strong style="color:${p.color}">${p.phase}</strong></td>
+        <td>${p.prevTotal}→${p.curTotal} ${deltaHtml(p.curTotal-p.prevTotal)}</td>
+        <td>${p.prevDone}→${p.curDone} ${deltaHtml(p.curDone-p.prevDone)}</td>
+        <td>${p.prevAct}→${p.curAct} ${deltaHtml(p.curAct-p.prevAct)}</td>
+        <td>${pp.toFixed(0)}%→${cp.toFixed(0)}%</td>
+        <td style="font-weight:600;${diff>0?'color:var(--green)':diff<0?'color:var(--red)':'color:var(--gray)'}">${diff>0?'+':''}${diff.toFixed(1)}%p</td></tr>`;
+    }).join('')}</tbody></table></div>`;
 
-  document.getElementById('weeklyContent').innerHTML=html;
+  document.getElementById('weeklyDetailContent').innerHTML=html;
+  if(weeklyChart1)weeklyChart1.destroy();
+  const ctx=document.getElementById('weeklyBarChart');
+  if(ctx){
+    weeklyChart1=new Chart(ctx,{type:'bar',data:{
+      labels:['완료','진행','검토','대기'],
+      datasets:[
+        {label:'전주',data:[prevSt.done||0,prevSt.doing||0,prevSt.review||0,prevSt.todo||0],backgroundColor:['#bbf7d0','#bfdbfe','#fde68a','#e5e7eb'],borderRadius:4},
+        {label:'이번주',data:[curSt.done||0,curSt.doing||0,curSt.review||0,curSt.todo||0],backgroundColor:['#16a34a','#2196F3','#f59e0b','#9E9E9E'],borderRadius:4}
+      ]},options:{responsive:true,plugins:{legend:{position:'top',labels:{font:{size:10},usePointStyle:true,pointStyle:'circle',padding:12}}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,grid:{color:'#f1f5f9'}}}}});
+  }
 }
 
-// --- Gantt ---
+function filterWkChg(type){
+  document.querySelectorAll('.pill-btn[data-f]').forEach(b=>{b.classList.toggle('active',b.dataset.f===type);});
+  document.querySelectorAll('#weeklyChangeList .chg-row').forEach(r=>{r.style.display=(type==='all'||r.dataset.type===type)?'flex':'none';});
+}
+
+// === Gantt (4/2=W1, 월 헤더 + 오늘 표시) ===
 function renderGantt(){
   const wrap=document.getElementById('ganttWrap');
-  let h='<table class="gt"><thead><tr><th class="g-h g-hn">작업명</th>';
-  // Month headers
-  const months=[{n:'4월',s:1,e:4},{n:'5월',s:5,e:9},{n:'6월',s:10,e:13},{n:'7월',s:14,e:17},{n:'8월',s:18,e:22},{n:'9월',s:23,e:26},{n:'10월',s:27,e:30}];
-  // Two header rows
-  h+='</tr><tr><th class="g-h g-hn" style="font-size:10px">WBS 코드 / 제목</th>';
+  const today=new Date();
+  const todayW=d2w(today.toISOString().slice(0,10));
+
+  const weekInfo=[];
   for(let w=1;w<=TW;w++){
     const d=wsd(w);
-    h+=`<th class="g-h g-w" title="W${w}: ${fd(d)}">W${w}</th>`;
+    const e=new Date(d);e.setDate(d.getDate()+6);
+    weekInfo.push({w,start:d,end:e,month:d.getMonth()+1,startStr:fd(d),endStr:fd(e)});
+  }
+  const monthGroups=[];
+  let cm=null,cc=0;
+  weekInfo.forEach(wi=>{
+    if(wi.month!==cm){if(cm!==null)monthGroups.push({month:cm,count:cc});cm=wi.month;cc=1;}else cc++;
+  });
+  if(cm!==null)monthGroups.push({month:cm,count:cc});
+
+  const mbWeeks=new Set();
+  let wi=1;
+  monthGroups.forEach((mg,i)=>{if(i>0)mbWeeks.add(wi);wi+=mg.count;});
+
+  const mc={'4':'#eff6ff','5':'#f0fdf4','6':'#fefce8','7':'#fff7ed','8':'#fdf2f8','9':'#f5f3ff','10':'#ecfeff'};
+
+  let h=`<div class="gantt-legend">
+    <span><div class="gl-box" style="background:#3b82f6"></div>완료</span>
+    <span><div class="gl-box" style="background:#3b82f6;opacity:.7"></div>진행/검토</span>
+    <span><div class="gl-box" style="background:#3b82f6;opacity:.35"></div>대기</span>
+    <span><div class="gl-box" style="background:#fffde7;border:1px solid #fbbf24"></div>오늘 (W${todayW||'-'})</span>
+    <span style="margin-left:auto;font-size:9px;color:var(--text-muted)">W1=4/2 | 총${TW}주 | 스냅샷:${selectedSnapDate}</span>
+  </div><div style="overflow-x:auto"><table class="gt"><thead>`;
+
+  // Month row
+  h+='<tr><th class="g-hm g-hn" rowspan="1">WBS 코드 / 제목</th>';
+  monthGroups.forEach(mg=>{
+    h+=`<th class="g-hm" colspan="${mg.count}" style="background:${mc[mg.month]||'#f8fafc'};color:var(--text);border-left:2px solid #475569">${mg.month}월</th>`;
+  });
+  h+='</tr>';
+
+  // Week row
+  h+='<tr><th class="g-h g-hn"></th>';
+  for(let w=1;w<=TW;w++){
+    const wk=weekInfo[w-1];
+    const isTd=w===todayW, isMb=mbWeeks.has(w);
+    const bg=isTd?'background:#fbbf24;color:#1e293b;font-weight:700':'';
+    const bl=isMb?'border-left:2px solid #475569;':'';
+    h+=`<th class="g-h g-w" style="${bg}${bl}" title="W${w}: ${wk.startStr}~${wk.endStr}"><div>W${w}</div><div style="font-size:7px;margin-top:1px;opacity:.8">${wk.startStr}</div></th>`;
   }
   h+='</tr></thead><tbody>';
 
   Object.entries(PM).forEach(([p,v])=>{
     const pi=curIssues.filter(i=>pn(i)===p).sort((a,b)=>(wbs(a)||'').localeCompare(wbs(b)||''));
-    if(!pi.length) return;
+    if(!pi.length)return;
     const as=pi.map(i=>d2w(i.start_date)).filter(Boolean);
     const ae=pi.map(i=>d2w(i.due_date)).filter(Boolean);
     const ps=as.length?Math.min(...as):1, pe=ae.length?Math.max(...ae):TW;
-    const doneCnt=pi.filter(i=>i.status_wbs==='done').length;
-    const doingCnt=pi.filter(i=>i.status_wbs==='doing'||i.status_wbs==='review').length;
+    const dn=pi.filter(i=>i.status_wbs==='done').length;
+    const dg=pi.filter(i=>i.status_wbs==='doing'||i.status_wbs==='review').length;
+    const pp=pi.length?(dn/pi.length*100).toFixed(0):0;
 
-    // Phase row
-    h+=`<tr><td class="g-p"><span style="color:${v.c}">${v.n}</span> <span style="font-size:10px;color:#94a3b8;font-weight:400">${pi.length}건 (완료${doneCnt} 진행${doingCnt})</span></td>`;
+    h+=`<tr><td class="g-p"><span style="color:${v.c}">${v.n}</span> <span style="font-size:10px;color:var(--text-muted);font-weight:400">${pi.length}건 (완료${dn} 진행${dg}) ${pp}%</span></td>`;
     for(let w=1;w<=TW;w++){
-      h+=`<td style="padding:0">${w>=ps&&w<=pe?`<div style="height:4px;margin:9px 0;background:${v.c};opacity:0.15;border-radius:2px"></div>`:''}</td>`;
+      const cls=[(w===todayW?'g-today-col':''),(mbWeeks.has(w)?'g-month-border':'')].filter(Boolean).join(' ');
+      h+=`<td${cls?' class="'+cls+'"':''} style="padding:0">${w>=ps&&w<=pe?`<div style="height:4px;margin:10px 0;background:${v.c};opacity:.15;border-radius:2px"></div>`:''}</td>`;
     }
     h+='</tr>';
 
-    // Issue rows
     pi.forEach(iss=>{
-      const sw=d2w(iss.start_date)||1, ew=d2w(iss.due_date)||sw;
+      const sw=d2w(iss.start_date)||1,ew=d2w(iss.due_date)||sw;
       const code=wbs(iss)||'';
-      const {color, opacity}=barColor(v.c, iss.status_wbs);
-      const borderStyle=iss.status_wbs==='done'?'2px solid '+v.c:'none';
-      h+=`<tr style="cursor:pointer" onclick="showDetail('${iss.key}')">
-        <td class="g-n"><span style="color:#94a3b8;font-size:9px;font-family:monospace">${code}</span> ${iss.summary} ${badge(iss.status_wbs)}</td>`;
+      const{color,opacity}=barColor(v.c,iss.status_wbs);
+      h+=`<tr style="cursor:pointer" onclick="showDetail('${iss.key}')"><td class="g-n"><span style="color:var(--text-muted);font-size:9px;font-family:monospace;margin-right:4px">${code}</span>${iss.summary} ${badge(iss.status_wbs)}</td>`;
       for(let w=1;w<=TW;w++){
+        const cls=[(w===todayW?'g-today-col':''),(mbWeeks.has(w)?'g-month-border':'')].filter(Boolean).join(' ');
         if(w>=sw&&w<=ew){
           const isS=w===sw,isE=w===ew;
-          const rad=isS&&isE?'3px':isS?'3px 0 0 3px':isE?'0 3px 3px 0':'0';
-          h+=`<td style="padding:0"><div style="height:${iss.status_wbs==='done'?12:10}px;margin:${iss.status_wbs==='done'?4:5}px 1px;background:${color};opacity:${opacity};border-radius:${rad};${iss.status_wbs==='done'?'box-shadow:0 1px 3px rgba(0,0,0,.2)':''}"></div></td>`;
-        } else {
-          h+='<td></td>';
+          const rad=isS&&isE?'4px':isS?'4px 0 0 4px':isE?'0 4px 4px 0':'0';
+          const bh=iss.status_wbs==='done'?12:10,bm=iss.status_wbs==='done'?4:5;
+          const sh=iss.status_wbs==='done'?'box-shadow:0 1px 3px rgba(0,0,0,.12);':'';
+          h+=`<td${cls?' class="'+cls+'"':''} style="padding:0"><div style="height:${bh}px;margin:${bm}px 1px;background:${color};opacity:${opacity};border-radius:${rad};${sh}"></div></td>`;
+        }else{
+          h+=`<td${cls?' class="'+cls+'"':''}></td>`;
         }
       }
       h+='</tr>';
     });
   });
-  h+='</tbody></table>';
+  h+='</tbody></table></div>';
   wrap.innerHTML=h;
 }
 
-// --- Phase Detail ---
+// === Phase Detail ===
 function renderPhaseDetail(){
   const c=document.getElementById('phaseDetail');
   let h='';
   Object.entries(PM).forEach(([p,v])=>{
     const pi=curIssues.filter(i=>pn(i)===p).sort((a,b)=>(wbs(a)||'').localeCompare(wbs(b)||''));
-    if(!pi.length) return;
+    if(!pi.length)return;
     const dn=pi.filter(i=>i.status_wbs==='done').length;
     const dg=pi.filter(i=>i.status_wbs==='doing').length;
-    h+=`<div class="tbl-wrap"><h3 style="color:${v.c}">${v.n} — ${pi.length}건 (완료 ${dn}, 진행 ${dg})</h3>
+    h+=`<div class="tbl-wrap"><div class="section-title"><span style="background:${v.c};width:3px;height:14px;border-radius:2px"></span>${v.n} <span class="section-sub">${pi.length}건 (완료 ${dn}, 진행 ${dg})</span></div>
       <table><thead><tr><th>KEY</th><th>WBS</th><th>제목</th><th>영역</th><th>담당자</th><th>기간</th><th>상태</th></tr></thead>
       <tbody>${pi.map(i=>`<tr style="cursor:pointer" onclick="showDetail('${i.key}')">
-        <td><a href="${JB}/browse/${i.key}" target="_blank" style="color:#2563eb;text-decoration:none;font-weight:600">${i.key}</a></td>
-        <td style="font-family:monospace;font-size:10px;color:#64748b">${wbs(i)||''}</td>
+        <td><a href="${JB}/browse/${i.key}" target="_blank" style="color:var(--primary);text-decoration:none;font-weight:600">${i.key}</a></td>
+        <td style="font-family:monospace;font-size:10px;color:var(--text-muted)">${wbs(i)||''}</td>
         <td>${i.summary}</td><td>${area(i)}</td><td>${i.assignee||'-'}</td>
         <td style="font-size:10px">${i.start_date||'-'} ~ ${i.due_date||'-'}</td><td>${badge(i.status_wbs)}</td>
       </tr>`).join('')}</tbody></table></div>`;
@@ -435,7 +700,7 @@ function renderPhaseDetail(){
   c.innerHTML=h;
 }
 
-// --- Tasks ---
+// === Tasks ===
 function renderTasks(){
   const phF=document.getElementById('taskPhase').value;
   const stF=document.getElementById('taskStatus').value;
@@ -449,8 +714,8 @@ function renderTasks(){
   if(arF)f=f.filter(i=>area(i)===arF);if(q)f=f.filter(i=>(i.key+i.summary+(i.assignee||'')).toLowerCase().includes(q));
   f.sort((a,b)=>(wbs(a)||'').localeCompare(wbs(b)||''));
   document.getElementById('taskBody').innerHTML=f.map(i=>`<tr style="cursor:pointer" onclick="showDetail('${i.key}')">
-    <td><a href="${JB}/browse/${i.key}" target="_blank" style="color:#2563eb;text-decoration:none;font-weight:600">${i.key}</a></td>
-    <td style="font-family:monospace;font-size:10px;color:#64748b">${wbs(i)||''}</td>
+    <td><a href="${JB}/browse/${i.key}" target="_blank" style="color:var(--primary);text-decoration:none;font-weight:600">${i.key}</a></td>
+    <td style="font-family:monospace;font-size:10px;color:var(--text-muted)">${wbs(i)||''}</td>
     <td>${i.summary}</td><td>${pName(i)}</td><td>${area(i)}</td><td>${i.assignee||'-'}</td>
     <td style="font-size:10px">${i.start_date||'-'}</td><td style="font-size:10px">${i.due_date||'-'}</td>
     <td>${badge(i.status_wbs)}</td><td>${i.priority||'-'}</td></tr>`).join('');
@@ -459,18 +724,24 @@ function popSel(id,items){const e=document.getElementById(id);if(e.options.lengt
 ['taskPhase','taskStatus','taskArea'].forEach(id=>document.getElementById(id).addEventListener('change',renderTasks));
 document.getElementById('taskSearch').addEventListener('input',renderTasks);
 
-// --- Modal ---
+// === Modal ===
 function showDetail(key){
-  const i=curIssues.find(x=>x.key===key)||(allSnapshots[latestSnap.date]?allSnapshots[latestSnap.date].issues.find(x=>x.key===key):null);
+  const i=curIssues.find(x=>x.key===key)||(allSnapshots[selectedSnapDate]?allSnapshots[selectedSnapDate].issues.find(x=>x.key===key):null);
   if(!i)return;
   document.getElementById('modalTitle').textContent=`${i.key} — ${i.summary}`;
-  document.getElementById('modalContent').innerHTML=`<p style="margin-bottom:10px;color:#666;font-size:12px">
-    <strong>WBS:</strong> ${wbs(i)||'-'} | <strong>페이즈:</strong> ${pName(i)} | <strong>영역:</strong> ${area(i)}<br>
-    <strong>기간:</strong> ${i.start_date||'-'} ~ ${i.due_date||'-'} | <strong>담당자:</strong> ${i.assignee||'-'}<br>
-    <strong>상태:</strong> ${badge(i.status_wbs)} | <strong>우선순위:</strong> ${i.priority||'-'} | <strong>유형:</strong> ${i.issue_type||'-'}<br>
-    <strong>라벨:</strong> ${(i.labels||[]).join(', ')||'-'}<br>
-    <strong>생성:</strong> ${i.created||'-'} | <strong>수정:</strong> ${i.updated||'-'}
-  </p><a href="${JB}/browse/${i.key}" target="_blank" style="color:#2563eb;font-size:12px">Jira에서 보기 &rarr;</a>`;
+  document.getElementById('modalContent').innerHTML=`<div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:12px;color:var(--text-sub);margin-bottom:14px">
+    <strong>WBS</strong><span>${wbs(i)||'-'}</span>
+    <strong>페이즈</strong><span>${pName(i)}</span>
+    <strong>영역</strong><span>${area(i)}</span>
+    <strong>기간</strong><span>${i.start_date||'-'} ~ ${i.due_date||'-'}</span>
+    <strong>담당자</strong><span>${i.assignee||'-'}</span>
+    <strong>상태</strong><span>${badge(i.status_wbs)}</span>
+    <strong>우선순위</strong><span>${i.priority||'-'}</span>
+    <strong>유형</strong><span>${i.issue_type||'-'}</span>
+    <strong>라벨</strong><span>${(i.labels||[]).join(', ')||'-'}</span>
+    <strong>생성</strong><span>${i.created||'-'}</span>
+    <strong>수정</strong><span>${i.updated||'-'}</span>
+  </div><a href="${JB}/browse/${i.key}" target="_blank" style="color:var(--primary);font-size:12px;font-weight:500">Jira에서 보기 →</a>`;
   document.getElementById('modalOverlay').classList.add('show');
 }
 function closeModal(){document.getElementById('modalOverlay').classList.remove('show');}
