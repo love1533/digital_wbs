@@ -186,18 +186,45 @@ class JiraClient:
         r.raise_for_status()
         return r.json()
 
+    def _post(self, path: str, body: dict = None) -> dict:
+        r = requests.post(
+            f"{self.base}/{path}",
+            auth=self.auth,
+            headers={**self.headers, "Content-Type": "application/json"},
+            json=body or {}, timeout=30,
+        )
+        r.raise_for_status()
+        return r.json()
+
     def search(self, jql: str, max_results: int = 10000) -> list:
-        """Jira Cloud REST v3: /rest/api/3/search/jql (기존 /search는 410 제거됨)."""
+        """Jira Cloud REST v3: /rest/api/3/search/jql (POST 방식 우선, 실패 시 GET fallback)."""
         issues = []
         next_page_token = None
-        fields_param = ",".join(JIRA_FIELDS)
         while True:
             batch = min(100, max_results - len(issues))
-            params = {"jql": jql, "maxResults": batch, "fields": fields_param}
+            body = {"jql": jql, "maxResults": batch, "fields": JIRA_FIELDS}
             if next_page_token:
-                params["nextPageToken"] = next_page_token
-            data = self._get("search/jql", params)
+                body["nextPageToken"] = next_page_token
+            try:
+                data = self._post("search/jql", body)
+            except requests.HTTPError as e:
+                # POST 실패 시 GET 으로 한 번만 재시도 (구버전 호환)
+                print(f"  ⚠ POST 실패 ({e}), GET 재시도...")
+                params = {"jql": jql, "maxResults": batch, "fields": ",".join(JIRA_FIELDS)}
+                if next_page_token:
+                    params["nextPageToken"] = next_page_token
+                data = self._get("search/jql", params)
             batch_issues = data.get("issues", [])
+            # 첫 페이지에서만 진단 로그 출력
+            if not issues:
+                is_last = data.get("isLast")
+                total   = data.get("total")
+                print(f"  • JIRA 응답: issues={len(batch_issues)}개, "
+                      f"total={total}, isLast={is_last}, "
+                      f"nextPageToken={'있음' if data.get('nextPageToken') else '없음'}")
+                if not batch_issues:
+                    print(f"  ⚠ 첫 응답이 비어있음 — JQL: {jql!r}")
+                    print(f"    응답 키: {list(data.keys())}")
             issues.extend(batch_issues)
             next_page_token = data.get("nextPageToken")
             if not batch_issues or len(issues) >= max_results or not next_page_token:
@@ -1707,8 +1734,9 @@ def main():
         START_DATE_CANDIDATES.insert(0, start_field)
 
     # JIRA 프로젝트 전체 이슈 1회 fetch (날짜별 이력용 스냅샷 + index.html 구성)
+    # MCP 테스트 결과 따옴표 없는 JQL이 안정적
     all_issues = client.search(
-        f'project = "{PROJECT_KEY}" ORDER BY rank ASC, created ASC',
+        f'project = {PROJECT_KEY} ORDER BY created ASC',
         max_results=10000
     )
     print(f"  • JIRA 전체 이슈: {len(all_issues)}개")
