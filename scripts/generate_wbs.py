@@ -1733,8 +1733,28 @@ def main():
         JIRA_FIELDS.append(start_field)
         START_DATE_CANDIDATES.insert(0, start_field)
 
+    # === 진단: 인증/권한/프로젝트 접근 확인 ===
+    try:
+        me = client._get("myself")
+        print(f"  • 인증 사용자: {me.get('displayName')} ({me.get('emailAddress','?')})")
+    except Exception as e:
+        print(f"  ⚠ /myself 실패: {e}")
+
+    try:
+        # 접근 가능한 프로젝트 목록 (최대 5개만)
+        projs = client._get("project/search", params={"query": "", "maxResults": 20})
+        names = [(p.get("key"), p.get("name")) for p in (projs.get("values") or [])][:10]
+        print(f"  • 접근 가능 프로젝트 ({len(projs.get('values') or [])}개): {names}")
+    except Exception as e:
+        print(f"  ⚠ 프로젝트 목록 실패: {e}")
+
+    try:
+        proj = client._get(f"project/{PROJECT_KEY}")
+        print(f"  • 대상 프로젝트 {PROJECT_KEY}: {proj.get('name')} ({proj.get('projectTypeKey')})")
+    except Exception as e:
+        print(f"  ⚠ 프로젝트 {PROJECT_KEY} 접근 실패: {e}")
+
     # JIRA 프로젝트 전체 이슈 1회 fetch (날짜별 이력용 스냅샷 + index.html 구성)
-    # MCP 테스트 결과 따옴표 없는 JQL이 안정적
     all_issues = client.search(
         f'project = {PROJECT_KEY} ORDER BY created ASC',
         max_results=10000
