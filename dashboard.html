@@ -281,7 +281,13 @@ function switchSnapshot(date){
 // === Load ===
 async function loadData(){
   try{
-    const ir=await fetch('docs/data/snapshots/index.json?'+Date.now());
+    // 경로 자동 감지
+    let base='docs/data/snapshots/';
+    let ir=await fetch(base+'index.json?'+Date.now());
+    if(!ir.ok){
+      base='data/snapshots/';
+      ir=await fetch(base+'index.json?'+Date.now());
+    }
     if(!ir.ok) throw new Error('스냅샷 인덱스를 찾을 수 없습니다.');
     const idx=await ir.json();
     if(!idx.snapshots||!idx.snapshots.length) throw new Error('스냅샷이 없습니다.');
@@ -289,7 +295,7 @@ async function loadData(){
     // Load all snapshots (max 10 recent)
     const snaps=idx.snapshots.slice(0,10);
     for(const s of snaps){
-      const r=await fetch('docs/data/snapshots/'+s.file+'?'+Date.now());
+      const r=await fetch(base+s.file+'?'+Date.now());
       allSnapshots[s.date]=await r.json();
     }
     snapshotDates=snaps.map(s=>s.date);
