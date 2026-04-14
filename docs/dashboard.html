@@ -170,9 +170,46 @@ tr:hover td { background:#f8faff; }
 .msg { text-align:center; padding:50px 20px; color:var(--text-muted); font-size:14px; }
 .msg.error { color:var(--red); }
 @media (max-width:768px) { .charts-row { grid-template-columns:1fr; } .cards { grid-template-columns:repeat(2,1fr); } .header { flex-direction:column; gap:8px; } .header-right { margin-left:0; } }
+
+/* Password gate */
+#gate { position:fixed; inset:0; background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 50%,#1e1b4b 100%); display:flex; align-items:center; justify-content:center; z-index:9999; }
+.gb { background:#fff; border-radius:20px; padding:2.4rem 2.8rem; width:420px; max-width:90vw; text-align:center; box-shadow:0 40px 80px rgba(0,0,0,.5); }
+.gb-logo { display:flex; align-items:center; justify-content:center; gap:.6rem; margin-bottom:1.4rem; }
+.gb-logo-icon { width:44px; height:44px; background:linear-gradient(135deg,#2563eb,#7c3aed); border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.4rem; }
+.gb-logo-text { font-size:.95rem; font-weight:700; color:#1e293b; text-align:left; line-height:1.2; }
+.gb-logo-sub { font-size:.7rem; color:#64748b; text-align:left; margin-top:2px; }
+.gb-title { font-size:1.2rem; font-weight:700; color:#1e293b; margin-bottom:.3rem; }
+.gb-sub { font-size:.78rem; color:#64748b; margin-bottom:1.3rem; }
+.gb input { width:100%; padding:.75rem 1rem; border:2px solid #e2e8f0; border-radius:10px; font-size:.95rem; outline:none; margin-bottom:.8rem; font-family:inherit; }
+.gb input:focus { border-color:#2563eb; }
+.gb button { width:100%; padding:.75rem; background:linear-gradient(135deg,#2563eb,#7c3aed); color:#fff; border:none; border-radius:10px; font-size:.95rem; font-weight:600; cursor:pointer; transition:all .2s; }
+.gb button:hover { transform:translateY(-1px); box-shadow:0 10px 20px rgba(37,99,235,.3); }
+.gb-err { font-size:.75rem; color:#dc2626; margin-top:.6rem; min-height:1rem; }
+.gb-footer { font-size:.65rem; color:#94a3b8; margin-top:1rem; padding-top:1rem; border-top:1px solid #f1f5f9; }
+#main { display:none; }
 </style>
 </head>
 <body>
+<!-- ══ 로그인 게이트 ══ -->
+<div id="gate">
+  <div class="gb">
+    <div class="gb-logo">
+      <div class="gb-logo-icon">📊</div>
+      <div>
+        <div class="gb-logo-text">경기신용보증재단 디지털고도화</div>
+        <div class="gb-logo-sub">WBS 대시보드</div>
+      </div>
+    </div>
+    <div class="gb-title">보안 로그인</div>
+    <div class="gb-sub">이 페이지는 디지털고도화 프로젝트 팀원 전용입니다</div>
+    <input type="password" id="pw" placeholder="비밀번호 입력" onkeydown="if(event.key==='Enter')auth()"/>
+    <button onclick="auth()">입장하기 →</button>
+    <div class="gb-err" id="gerr"></div>
+    <div class="gb-footer">🔐 SHA-256 암호화 · JIRA 스냅샷 기반</div>
+  </div>
+</div>
+
+<div id="main">
 <div class="header">
   <div class="header-left">
     <div><h1>GCGF0323 디지털고도화 WBS</h1><div class="sub">경기신용보증재단 디지털고도화 구축 프로젝트</div></div>
@@ -281,7 +318,7 @@ function switchSnapshot(date){
 // === Load ===
 async function loadData(){
   try{
-    // 경로 자동 감지: 로컬(/dashboard.html)은 'docs/data/...', GitHub Pages(/digital_wbs/dashboard.html)는 'data/...'
+    // 경로 자동 감지
     let base='docs/data/snapshots/';
     let ir=await fetch(base+'index.json?'+Date.now());
     if(!ir.ok){
@@ -780,7 +817,26 @@ function showDetail(key){
 function closeModal(){document.getElementById('modalOverlay').classList.remove('show');}
 document.getElementById('modalOverlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
 
-loadData();
+// === 로그인 게이트 ===
+const HASH="963a762234d48d6b69c55793e8bebfd96d1fefbf648e7edc55ebd99a17b1242d";
+async function sha256(s){
+  const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));
+  return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+async function auth(){
+  const v=document.getElementById('pw').value;
+  if(!v){setErr('비밀번호를 입력해주세요');return;}
+  if(await sha256(v)===HASH){sessionStorage.setItem('wbs_dashboard','1');openMain();}
+  else{setErr('비밀번호가 올바르지 않습니다');document.getElementById('pw').value='';document.getElementById('pw').focus();}
+}
+function setErr(m){const e=document.getElementById('gerr');e.textContent=m;setTimeout(()=>e.textContent='',2500);}
+function openMain(){
+  document.getElementById('gate').style.display='none';
+  document.getElementById('main').style.display='block';
+  loadData();
+}
+if(sessionStorage.getItem('wbs_dashboard')==='1') openMain();
+else document.getElementById('pw').focus();
 </script>
 </body>
 </html>
