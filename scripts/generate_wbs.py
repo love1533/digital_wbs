@@ -57,14 +57,15 @@ JIRA_EMAIL      = os.environ.get("JIRA_EMAIL", "")
 JIRA_TOKEN      = os.environ.get("JIRA_API_TOKEN", "")
 PROJECT_KEY     = os.environ.get("JIRA_PROJECT_KEY", "")
 WBS_PASSWORD       = os.environ.get("WBS_PASSWORD", "")
-OUTPUT_PATH        = os.environ.get("WBS_OUTPUT", "docs/index.html")
-WBS_TITLE          = os.environ.get("WBS_TITLE", "프로젝트 WBS")
-WBS_PROJECT_NAME   = os.environ.get("WBS_PROJECT_NAME", "경기신용보증재단 디지털고도화")
-WBS_GATE_SUB       = os.environ.get("WBS_GATE_SUB", "이 페이지는 디지털고도화 프로젝트 팀원 전용입니다")
-PROJECT_START_S = os.environ.get("PROJECT_START_DATE", "2026-03-23")
-TOTAL_WEEKS     = int(os.environ.get("TOTAL_WEEKS", "32"))
-SNAPSHOT_DIR    = os.environ.get("SNAPSHOT_DIR",    "docs/data/snapshots")
-HISTORY_PATH    = os.environ.get("HISTORY_OUTPUT",  "docs/history.html")
+# GitHub Actions vars.* 는 미설정 시 빈 문자열("")로 들어오므로 `or` 로 기본값 대체
+OUTPUT_PATH        = os.environ.get("WBS_OUTPUT") or "docs/index.html"
+WBS_TITLE          = os.environ.get("WBS_TITLE") or "프로젝트 WBS"
+WBS_PROJECT_NAME   = os.environ.get("WBS_PROJECT_NAME") or "경기신용보증재단 디지털고도화"
+WBS_GATE_SUB       = os.environ.get("WBS_GATE_SUB") or "이 페이지는 디지털고도화 프로젝트 팀원 전용입니다"
+PROJECT_START_S    = os.environ.get("PROJECT_START_DATE") or "2026-03-23"
+TOTAL_WEEKS        = int(os.environ.get("TOTAL_WEEKS") or "32")
+SNAPSHOT_DIR       = os.environ.get("SNAPSHOT_DIR") or "docs/data/snapshots"
+HISTORY_PATH       = os.environ.get("HISTORY_OUTPUT") or "docs/history.html"
 
 try:
     PROJECT_START = datetime.strptime(PROJECT_START_S, "%Y-%m-%d")
