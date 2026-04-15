@@ -818,7 +818,7 @@ function closeModal(){document.getElementById('modalOverlay').classList.remove('
 document.getElementById('modalOverlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
 
 // === 로그인 게이트 ===
-const HASH="963a762234d48d6b69c55793e8bebfd96d1fefbf648e7edc55ebd99a17b1242d";
+const HASH="36ac20ada3277fa1b9579115ac8c54d4ae87a6eb26ac0a0ab3acdbfbc1cea5a8";
 async function sha256(s){
   const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));
   return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
