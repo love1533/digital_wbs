@@ -95,7 +95,12 @@ tr:hover td { background:#f8faff; }
 .modal .close-btn:hover { color:var(--text); }
 
 /* Gantt (반응형 + 가독성 강화) */
-.gantt-wrap { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
+.gantt-wrap { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); overflow-x:auto; overflow-y:visible; scrollbar-gutter:stable; }
+.gantt-wrap::-webkit-scrollbar { height:10px; }
+.gantt-wrap::-webkit-scrollbar-track { background:var(--surface-alt); border-radius:0 0 var(--radius) var(--radius); }
+.gantt-wrap::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:5px; border:2px solid var(--surface-alt); }
+.gantt-wrap::-webkit-scrollbar-thumb:hover { background:#94a3b8; }
+.gantt-wrap { scrollbar-width:thin; scrollbar-color:#cbd5e1 var(--surface-alt); }
 .gantt-legend { display:flex; gap:16px; padding:12px 18px; font-size:12px; color:var(--text-sub); border-bottom:1px solid var(--border); flex-wrap:wrap; align-items:center; font-weight:500; }
 .gantt-legend span { display:flex; align-items:center; gap:6px; }
 .gantt-legend .gl-box { width:20px; height:12px; border-radius:3px; }
@@ -710,7 +715,7 @@ function renderGantt(){
     <span><div class="gl-box" style="background:#3b82f6;opacity:.35"></div>대기</span>
     <span><div class="gl-box" style="background:#fffbe6;border:1px solid #fbbf24"></div>오늘 <strong>W${todayW||'-'}</strong></span>
     <span style="margin-left:auto;font-size:11px;color:var(--text-muted);font-weight:400">W1=4/2 | 총 ${TW}주 | 스냅샷: <strong>${selectedSnapDate}</strong></span>
-  </div><div style="overflow-x:auto"><table class="gt"><thead>`;
+  </div><table class="gt"><thead>`;
 
   // Month row
   h+='<tr><th class="g-hm g-hn" rowspan="1">WBS 코드 / 제목</th>';
@@ -766,7 +771,7 @@ function renderGantt(){
       h+='</tr>';
     });
   });
-  h+='</tbody></table></div>';
+  h+='</tbody></table>';
   wrap.innerHTML=h;
 }
 
