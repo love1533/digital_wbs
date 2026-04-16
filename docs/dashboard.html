@@ -146,7 +146,7 @@ tr:hover td { background:#f8faff; }
 .gt .g-hw-past { color:#cbd5e1; }
 
 /* 바 */
-.gt .g-bar { height:18px; margin:6px 0; border-radius:0; position:relative; }
+.gt .g-bar { height:18px; margin:6px 0; border-radius:0; position:relative; overflow:visible; }
 .gt .g-bar-s { border-radius:4px 0 0 4px; }
 .gt .g-bar-e { border-radius:0 4px 4px 0; }
 .gt .g-bar-se { border-radius:4px; }
@@ -159,7 +159,7 @@ tr:hover td { background:#f8faff; }
 /* 검토: 약간 투명 */
 .gt .g-bar-review { opacity:0.85; }
 .gt .g-bar-phase { height:5px; margin:14px 0; opacity:0.25; border-radius:0; }
-.gt .g-bar-label { position:absolute; left:4px; top:0; line-height:18px; font-size:10px; color:#fff; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-shadow:0 1px 2px rgba(0,0,0,.4); letter-spacing:-.2px; }
+.gt .g-bar-label { position:absolute; left:4px; top:0; line-height:18px; font-size:10px; color:#fff; font-weight:600; white-space:nowrap; overflow:visible; text-shadow:0 1px 2px rgba(0,0,0,.4); letter-spacing:-.2px; z-index:2; pointer-events:none; }
 
 /* 반응형 */
 @media (max-width:1200px) {
@@ -944,7 +944,8 @@ function renderGantt(){
         }
 
         const showLabel=isS&&barSpan>=2&&depth>=2;
-        const labelHtml=showLabel?`<span class="g-bar-label">${i.summary}</span>`:'';
+        const labelW=barSpan*52-8;
+        const labelHtml=showLabel?`<span class="g-bar-label" style="max-width:${labelW}px">${i.summary}</span>`:'';
 
         h+=`<td${cls?' class="'+cls+'"':''} style="padding:0;position:relative"><div class="${barCls} ${radCls}" style="background:${bg}">${labelHtml}</div></td>`;
       }else{
