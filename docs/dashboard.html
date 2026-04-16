@@ -110,6 +110,15 @@ tr:hover td { background:#f8faff; }
 .gt .g-p { position:sticky; left:0; z-index:2; background:var(--surface-alt); padding:8px 12px; font-weight:700; font-size:13px; min-width:320px; border-right:2px solid var(--border-strong); line-height:1.35; }
 .gt .g-p .g-p-sub { font-size:11px; color:var(--text-muted); font-weight:400; margin-left:6px; }
 .gt .g-wbs { color:var(--text-muted); font-size:11px; font-family:'SF Mono', Menlo, Consolas, monospace; margin-right:6px; background:var(--surface-alt); padding:1px 5px; border-radius:3px; }
+/* 트리 계층 */
+.gt .g-lv0 { background:#eef2ff; font-weight:700; font-size:13px; cursor:pointer; }
+.gt .g-lv0:hover { background:#e0e7ff; }
+.gt .g-lv1 { background:var(--surface-alt); font-weight:600; font-size:12px; cursor:pointer; padding-left:20px !important; }
+.gt .g-lv1:hover { background:#f1f5f9; }
+.gt .g-lv2 { padding-left:36px !important; }
+.gt .g-lv3 { padding-left:52px !important; font-size:12px; color:var(--text-sub); }
+.gt .g-toggle { display:inline-block; width:16px; font-size:10px; color:var(--text-muted); margin-right:4px; cursor:pointer; user-select:none; text-align:center; }
+.gt tr.g-collapsed { display:none; }
 .gt .g-hm { background:#0f172a; color:#e2e8f0; font-size:13px; font-weight:700; padding:10px 4px; text-align:center; position:sticky; top:0; z-index:3; letter-spacing:.5px; border-bottom:none; }
 .gt .g-hm.g-hn { position:sticky; left:0; z-index:5; min-width:320px; border-right:2px solid #475569; font-size:12px; }
 .gt .g-h { background:#1e293b; color:#cbd5e1; font-size:11px; padding:6px 2px; text-align:center; position:sticky; top:38px; z-index:3; font-weight:600; }
@@ -684,7 +693,68 @@ function filterWkChg(type){
   document.querySelectorAll('#weeklyChangeList .chg-row').forEach(r=>{r.style.display=(type==='all'||r.dataset.type===type)?'flex':'none';});
 }
 
-// === Gantt (4/2=W1, 월 헤더 + 오늘 표시) ===
+// === Gantt (트리형 WBS, 접기/펼치기, 월 헤더 + 오늘 표시) ===
+
+// WBS 코드 → 트리 노드 구성
+function buildWbsTree(issues){
+  const map={};
+  issues.forEach(i=>{
+    const code=wbs(i); if(!code)return;
+    map[code]={code,issue:i,children:[],depth:code.split('.').length-1};
+  });
+  // 부모-자식 연결 (예: 1.1.1의 부모는 1.1)
+  const roots=[];
+  Object.values(map).forEach(node=>{
+    const parts=node.code.split('.');
+    if(parts.length>1){
+      const parentCode=parts.slice(0,-1).join('.');
+      if(map[parentCode]) map[parentCode].children.push(node);
+      else roots.push(node);
+    } else roots.push(node);
+  });
+  // 재귀 정렬
+  function sortTree(nodes){
+    nodes.sort((a,b)=>a.code.localeCompare(b.code,undefined,{numeric:true}));
+    nodes.forEach(n=>sortTree(n.children));
+  }
+  sortTree(roots);
+  return roots;
+}
+
+// 트리를 플랫 배열로 전개
+function flattenTree(nodes, depth=0, parentCode=''){
+  const result=[];
+  nodes.forEach(node=>{
+    const hasChildren=node.children.length>0;
+    result.push({...node, depth, hasChildren, parentCode});
+    if(hasChildren) result.push(...flattenTree(node.children, depth+1, node.code));
+  });
+  return result;
+}
+
+// 자식 범위 (start/end 주차) 집계
+function getTreeRange(node){
+  const i=node.issue;
+  let sw=d2w(i.start_date), ew=d2w(i.due_date);
+  if(node.children.length>0){
+    node.children.forEach(c=>{
+      const r=getTreeRange(c);
+      if(r.sw && (!sw||r.sw<sw)) sw=r.sw;
+      if(r.ew && (!ew||r.ew>ew)) ew=r.ew;
+    });
+  }
+  return {sw:sw||1, ew:ew||sw||1};
+}
+
+// 자식 상태 집계
+function getTreeStats(node){
+  if(node.children.length===0) return {total:1, done:node.issue.status_wbs==='done'?1:0, doing:node.issue.status_wbs==='doing'||node.issue.status_wbs==='review'?1:0};
+  return node.children.reduce((acc,c)=>{
+    const s=getTreeStats(c);
+    return {total:acc.total+s.total, done:acc.done+s.done, doing:acc.doing+s.doing};
+  },{total:0,done:0,doing:0});
+}
+
 function renderGantt(){
   const wrap=document.getElementById('ganttWrap');
   const today=new Date();
@@ -709,22 +779,27 @@ function renderGantt(){
 
   const mc={'4':'#eff6ff','5':'#f0fdf4','6':'#fefce8','7':'#fff7ed','8':'#fdf2f8','9':'#f5f3ff','10':'#ecfeff'};
 
+  // 트리 구성
+  const tree=buildWbsTree(curIssues);
+  const flatNodes=flattenTree(tree);
+
   let h=`<div class="gantt-legend">
     <span><div class="gl-box" style="background:#3b82f6"></div>완료</span>
     <span><div class="gl-box" style="background:#3b82f6;opacity:.7"></div>진행/검토</span>
     <span><div class="gl-box" style="background:#3b82f6;opacity:.35"></div>대기</span>
     <span><div class="gl-box" style="background:#fffbe6;border:1px solid #fbbf24"></div>오늘 <strong>W${todayW||'-'}</strong></span>
+    <span style="font-size:11px;color:var(--text-muted)">▶ 클릭하여 접기/펼치기</span>
     <span style="margin-left:auto;font-size:11px;color:var(--text-muted);font-weight:400">W1=4/2 | 총 ${TW}주 | 스냅샷: <strong>${selectedSnapDate}</strong></span>
   </div><table class="gt"><thead>`;
 
-  // Month row
-  h+='<tr><th class="g-hm g-hn" rowspan="1">WBS 코드 / 제목</th>';
+  // 월 헤더
+  h+='<tr><th class="g-hm g-hn">WBS 코드 / 제목</th>';
   monthGroups.forEach(mg=>{
     h+=`<th class="g-hm" colspan="${mg.count}" style="background:${mc[mg.month]||'#f8fafc'};color:var(--text);border-left:2px solid #475569">${mg.month}월</th>`;
   });
   h+='</tr>';
 
-  // Week row
+  // 주차 헤더
   h+='<tr><th class="g-h g-hn"></th>';
   for(let w=1;w<=TW;w++){
     const wk=weekInfo[w-1];
@@ -734,45 +809,94 @@ function renderGantt(){
   }
   h+='</tr></thead><tbody>';
 
-  Object.entries(PM).forEach(([p,v])=>{
-    const pi=curIssues.filter(i=>pn(i)===p).sort((a,b)=>(wbs(a)||'').localeCompare(wbs(b)||''));
-    if(!pi.length)return;
-    const as=pi.map(i=>d2w(i.start_date)).filter(Boolean);
-    const ae=pi.map(i=>d2w(i.due_date)).filter(Boolean);
-    const ps=as.length?Math.min(...as):1, pe=ae.length?Math.max(...ae):TW;
-    const dn=pi.filter(i=>i.status_wbs==='done').length;
-    const dg=pi.filter(i=>i.status_wbs==='doing'||i.status_wbs==='review').length;
-    const pp=pi.length?(dn/pi.length*100).toFixed(0):0;
+  // 각 노드 렌더링
+  flatNodes.forEach(node=>{
+    const i=node.issue;
+    const code=node.code;
+    const depth=node.depth;
+    const hasChildren=node.hasChildren;
+    const phaseIdx=code.split('.')[0];
+    const phaseColor=(PM[phaseIdx]||{c:'#64748b'}).c;
 
-    h+=`<tr class="g-phase-row"><td class="g-p"><span style="color:${v.c}">${v.n}</span><span class="g-p-sub">${pi.length}건 · 완료 ${dn} · 진행 ${dg} · ${pp}%</span></td>`;
+    // 부모 코드 추적 (접기용 data 속성)
+    const ancestors=[];
+    const parts=code.split('.');
+    for(let d=1;d<parts.length;d++) ancestors.push(parts.slice(0,d).join('.'));
+    const ancestorAttr=ancestors.length?` data-parents="${ancestors.join(',')}"`:'';;
+
+    // 범위/상태 계산
+    const treeNode=hasChildren ? (function findNode(nodes,c){for(const n of nodes){if(n.code===c)return n;const f=findNode(n.children,c);if(f)return f;}return null;})(tree,code) : null;
+    const range=treeNode?getTreeRange(treeNode):{sw:d2w(i.start_date)||1,ew:d2w(i.due_date)||(d2w(i.start_date)||1)};
+    const stats=treeNode?getTreeStats(treeNode):{total:1,done:i.status_wbs==='done'?1:0,doing:0};
+    const pct=stats.total?(stats.done/stats.total*100).toFixed(0):0;
+
+    const lvCls=`g-lv${Math.min(depth,3)}`;
+    const toggle=hasChildren?`<span class="g-toggle" data-code="${code}" onclick="toggleGantt(event,'${code}')">▼</span>`:`<span class="g-toggle"></span>`;
+
+    // 셀 내용
+    const nameContent=depth<=1
+      ? `${toggle}<span class="g-wbs">${code}</span><strong style="color:${phaseColor}">${i.summary}</strong><span class="g-p-sub">${stats.total}건 · ${pct}% ${badge(i.status_wbs)}</span>`
+      : `${toggle}<span class="g-wbs">${code}</span>${i.summary} ${badge(i.status_wbs)}`;
+
+    // 행 시작
+    const rowClick=hasChildren?'':`onclick="showDetail('${i.key}')"`;
+    h+=`<tr class="g-tree-row" data-code="${code}" data-depth="${depth}"${ancestorAttr} style="cursor:pointer" ${rowClick}>`;
+    h+=`<td class="g-n ${lvCls}">${nameContent}</td>`;
+
+    // 바 렌더링
+    const sw=range.sw, ew=range.ew;
     for(let w=1;w<=TW;w++){
       const cls=[(w===todayW?'g-today-col':''),(mbWeeks.has(w)?'g-month-border':'')].filter(Boolean).join(' ');
-      h+=`<td${cls?' class="'+cls+'"':''} style="padding:0">${w>=ps&&w<=pe?`<div style="height:6px;margin:14px 0;background:${v.c};opacity:.2;border-radius:3px"></div>`:''}</td>`;
+      if(w>=sw&&w<=ew){
+        const isS=w===sw,isE=w===ew;
+        const rad=isS&&isE?'5px':isS?'5px 0 0 5px':isE?'0 5px 5px 0':'0';
+        let bh,bm,color,opacity,sh='';
+        if(depth===0){
+          bh=8;bm=12;color=phaseColor;opacity=0.25;
+        }else if(depth===1 && hasChildren){
+          bh=10;bm=10;color=phaseColor;opacity=0.4;
+        }else{
+          const bc=barColor(phaseColor,i.status_wbs);
+          color=bc.color;opacity=bc.opacity;
+          bh=i.status_wbs==='done'?16:14;bm=i.status_wbs==='done'?7:8;
+          sh=i.status_wbs==='done'?'box-shadow:0 1px 3px rgba(0,0,0,.15);':'';
+        }
+        h+=`<td${cls?' class="'+cls+'"':''} style="padding:0"><div style="height:${bh}px;margin:${bm}px 2px;background:${color};opacity:${opacity};border-radius:${rad};${sh}"></div></td>`;
+      }else{
+        h+=`<td${cls?' class="'+cls+'"':''}></td>`;
+      }
     }
     h+='</tr>';
-
-    pi.forEach(iss=>{
-      const sw=d2w(iss.start_date)||1,ew=d2w(iss.due_date)||sw;
-      const code=wbs(iss)||'';
-      const{color,opacity}=barColor(v.c,iss.status_wbs);
-      h+=`<tr style="cursor:pointer" onclick="showDetail('${iss.key}')"><td class="g-n"><span class="g-wbs">${code}</span>${iss.summary} ${badge(iss.status_wbs)}</td>`;
-      for(let w=1;w<=TW;w++){
-        const cls=[(w===todayW?'g-today-col':''),(mbWeeks.has(w)?'g-month-border':'')].filter(Boolean).join(' ');
-        if(w>=sw&&w<=ew){
-          const isS=w===sw,isE=w===ew;
-          const rad=isS&&isE?'5px':isS?'5px 0 0 5px':isE?'0 5px 5px 0':'0';
-          const bh=iss.status_wbs==='done'?16:14, bm=iss.status_wbs==='done'?7:8;
-          const sh=iss.status_wbs==='done'?'box-shadow:0 1px 3px rgba(0,0,0,.15);':'';
-          h+=`<td${cls?' class="'+cls+'"':''} style="padding:0"><div style="height:${bh}px;margin:${bm}px 2px;background:${color};opacity:${opacity};border-radius:${rad};${sh}"></div></td>`;
-        }else{
-          h+=`<td${cls?' class="'+cls+'"':''}></td>`;
-        }
-      }
-      h+='</tr>';
-    });
   });
+
   h+='</tbody></table>';
   wrap.innerHTML=h;
+}
+
+// 간트 접기/펼치기
+function toggleGantt(ev, code){
+  ev.stopPropagation();
+  const toggle=ev.target;
+  const isCollapsed=toggle.textContent.trim()==='▶';
+  toggle.textContent=isCollapsed?'▼':'▶';
+
+  document.querySelectorAll('.g-tree-row').forEach(row=>{
+    const parents=(row.dataset.parents||'').split(',');
+    if(parents.includes(code)){
+      if(isCollapsed){
+        row.classList.remove('g-collapsed');
+        // 하위 토글 상태도 복원: 부모가 접힌 상태면 여전히 숨김
+        const parentCodes=parents.filter(p=>p!==code);
+        const anyParentCollapsed=parentCodes.some(pc=>{
+          const t=document.querySelector(`.g-toggle[data-code="${pc}"]`);
+          return t&&t.textContent.trim()==='▶';
+        });
+        if(anyParentCollapsed) row.classList.add('g-collapsed');
+      }else{
+        row.classList.add('g-collapsed');
+      }
+    }
+  });
 }
 
 // === Phase Detail ===
