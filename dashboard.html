@@ -94,57 +94,69 @@ tr:hover td { background:#f8faff; }
 .modal .close-btn { float:right; background:none; border:none; font-size:22px; cursor:pointer; color:var(--text-muted); line-height:1; }
 .modal .close-btn:hover { color:var(--text); }
 
-/* Gantt (반응형 + 가독성 강화) */
-.gantt-wrap { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); overflow-x:auto; overflow-y:visible; scrollbar-gutter:stable; }
-.gantt-wrap::-webkit-scrollbar { height:10px; }
-.gantt-wrap::-webkit-scrollbar-track { background:var(--surface-alt); border-radius:0 0 var(--radius) var(--radius); }
-.gantt-wrap::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:5px; border:2px solid var(--surface-alt); }
+/* Gantt — Jira Advanced Roadmap 스타일 */
+.gantt-wrap { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); overflow-x:auto; overflow-y:visible; }
+.gantt-wrap::-webkit-scrollbar { height:8px; }
+.gantt-wrap::-webkit-scrollbar-track { background:var(--surface-alt); }
+.gantt-wrap::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:4px; }
 .gantt-wrap::-webkit-scrollbar-thumb:hover { background:#94a3b8; }
 .gantt-wrap { scrollbar-width:thin; scrollbar-color:#cbd5e1 var(--surface-alt); }
-.gantt-legend { display:flex; gap:16px; padding:12px 18px; font-size:12px; color:var(--text-sub); border-bottom:1px solid var(--border); flex-wrap:wrap; align-items:center; font-weight:500; }
-.gantt-legend span { display:flex; align-items:center; gap:6px; }
-.gantt-legend .gl-box { width:20px; height:12px; border-radius:3px; }
-.gt { border-collapse:collapse; font-size:12px; width:max-content; min-width:100%; }
-.gt th, .gt td { border:1px solid var(--border); padding:0; }
-.gt .g-n { position:sticky; left:0; z-index:2; background:var(--surface); padding:8px 12px; min-width:320px; max-width:380px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; border-right:2px solid var(--border-strong); line-height:1.35; }
-.gt .g-p { position:sticky; left:0; z-index:2; background:var(--surface-alt); padding:8px 12px; font-weight:700; font-size:13px; min-width:320px; border-right:2px solid var(--border-strong); line-height:1.35; }
-.gt .g-p .g-p-sub { font-size:11px; color:var(--text-muted); font-weight:400; margin-left:6px; }
-.gt .g-wbs { color:var(--text-muted); font-size:11px; font-family:'SF Mono', Menlo, Consolas, monospace; margin-right:6px; background:var(--surface-alt); padding:1px 5px; border-radius:3px; }
-/* 트리 계층 */
-.gt .g-lv0 { background:#eef2ff; font-weight:700; font-size:13px; cursor:pointer; }
-.gt .g-lv0:hover { background:#e0e7ff; }
-.gt .g-lv1 { background:var(--surface-alt); font-weight:600; font-size:12px; cursor:pointer; padding-left:20px !important; }
-.gt .g-lv1:hover { background:#f1f5f9; }
-.gt .g-lv2 { padding-left:36px !important; }
-.gt .g-lv3 { padding-left:52px !important; font-size:12px; color:var(--text-sub); }
-.gt .g-toggle { display:inline-block; width:16px; font-size:10px; color:var(--text-muted); margin-right:4px; cursor:pointer; user-select:none; text-align:center; }
-.gt tr.g-collapsed { display:none; }
-.gt .g-hm { background:#0f172a; color:#e2e8f0; font-size:13px; font-weight:700; padding:10px 4px; text-align:center; position:sticky; top:0; z-index:3; letter-spacing:.5px; border-bottom:none; }
-.gt .g-hm.g-hn { position:sticky; left:0; z-index:5; min-width:320px; border-right:2px solid #475569; font-size:12px; }
-.gt .g-h { background:#1e293b; color:#cbd5e1; font-size:11px; padding:6px 2px; text-align:center; position:sticky; top:38px; z-index:3; font-weight:600; }
-.gt .g-h .g-h-dt { font-size:9px; color:#94a3b8; margin-top:2px; font-weight:400; }
-.gt .g-h.g-hn { position:sticky; left:0; z-index:5; min-width:320px; border-right:2px solid #475569; }
-.gt .g-w { width:48px; min-width:48px; }
-.gt .g-month-border { border-left:2px solid var(--text-muted) !important; }
-.gt td.g-today-col { background:#fffbe6; }
-.gt th.g-today-col { background:#fbbf24 !important; color:#1e293b !important; font-weight:700; }
-.gt tbody tr:hover td:not(.g-n):not(.g-p) { background:#f8faff; }
-.gt tbody tr.g-phase-row:hover td { background:inherit; }
+.gantt-toolbar { display:flex; gap:12px; padding:10px 16px; font-size:12px; color:var(--text-sub); border-bottom:1px solid var(--border); flex-wrap:wrap; align-items:center; background:var(--surface-alt); }
+.gantt-toolbar span { display:flex; align-items:center; gap:5px; }
+.gantt-toolbar .gl-box { width:14px; height:10px; border-radius:3px; }
 
-/* Gantt 반응형: 화면 너비에 따라 조정 */
+.gt { border-collapse:collapse; font-size:12px; width:max-content; min-width:100%; }
+.gt th, .gt td { border-right:1px solid #f0f0f0; border-bottom:1px solid #f0f0f0; border-left:none; border-top:none; padding:0; }
+
+/* 좌측 고정 열 */
+.gt .g-n { position:sticky; left:0; z-index:2; background:var(--surface); padding:6px 10px; min-width:380px; max-width:440px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; border-right:2px solid var(--border) !important; line-height:1.4; }
+.gt .g-status { display:inline-block; min-width:50px; }
+.gt .g-p-sub { font-size:11px; color:var(--text-muted); font-weight:400; margin-left:6px; }
+.gt .g-wbs { color:var(--text-muted); font-size:10px; font-family:'SF Mono',Menlo,Consolas,monospace; margin-right:5px; }
+
+/* 트리 계층 */
+.gt .g-lv0 { background:#f8fafc; font-weight:700; font-size:13px; cursor:pointer; border-bottom:2px solid var(--border) !important; }
+.gt .g-lv0:hover { background:#f1f5f9; }
+.gt .g-lv1 { background:var(--surface); font-weight:600; font-size:12px; cursor:pointer; padding-left:22px !important; }
+.gt .g-lv1:hover { background:#fafbfc; }
+.gt .g-lv2 { padding-left:40px !important; font-weight:400; }
+.gt .g-lv3 { padding-left:56px !important; font-size:12px; color:var(--text-sub); }
+.gt .g-toggle { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; font-size:8px; color:var(--text-muted); margin-right:4px; cursor:pointer; user-select:none; border-radius:4px; transition:background .15s; }
+.gt .g-toggle:hover { background:var(--primary-light); color:var(--primary); }
+.gt tr.g-collapsed { display:none; }
+.gt tbody tr:nth-child(even) td { background:rgba(248,250,252,.5); }
+.gt tbody tr:nth-child(even) .g-n { background:#fcfcfd; }
+.gt tbody tr:hover td { background:#f0f7ff !important; }
+.gt tbody tr:hover .g-n { background:#f0f7ff !important; }
+
+/* 헤더: 분기+월 */
+.gt .g-hq { background:#f8fafc; color:var(--text-sub); font-size:12px; font-weight:600; padding:6px 4px; text-align:center; position:sticky; top:0; z-index:3; border-bottom:1px solid var(--border) !important; }
+.gt .g-hq.g-hn { position:sticky; left:0; z-index:5; min-width:380px; border-right:2px solid var(--border) !important; background:var(--surface); }
+.gt .g-hm { background:var(--surface); color:var(--text); font-size:12px; font-weight:600; padding:5px 2px; text-align:center; position:sticky; top:28px; z-index:3; border-bottom:1px solid var(--border) !important; }
+.gt .g-hm.g-hn { position:sticky; left:0; z-index:5; min-width:380px; border-right:2px solid var(--border) !important; font-size:11px; color:var(--text-sub); }
+.gt .g-w { width:48px; min-width:48px; }
+.gt .g-month-border { border-left:1px solid var(--border-strong) !important; }
+.gt .g-quarter-border { border-left:2px solid var(--text-muted) !important; }
+
+/* 오늘 세로선 */
+.gt td.g-today-col { position:relative; }
+.gt td.g-today-col::after { content:''; position:absolute; top:0; left:50%; width:2px; height:100%; background:#4285f4; z-index:1; transform:translateX(-1px); }
+.gt th.g-today-hdr { color:#4285f4 !important; font-weight:700; }
+
+/* 바 내부 텍스트 */
+.g-bar { position:relative; display:flex; align-items:center; overflow:hidden; }
+.g-bar-label { position:absolute; left:6px; font-size:10px; font-weight:500; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:calc(100% - 12px); text-shadow:0 1px 2px rgba(0,0,0,.2); }
+
+/* 반응형 */
 @media (max-width:1200px) {
   .gt { font-size:11px; }
-  .gt .g-n, .gt .g-p, .gt .g-hm.g-hn, .gt .g-h.g-hn { min-width:260px; max-width:280px; padding:6px 10px; font-size:12px; }
+  .gt .g-n, .gt .g-hq.g-hn, .gt .g-hm.g-hn { min-width:300px; max-width:320px; }
   .gt .g-w { width:42px; min-width:42px; }
-  .gt .g-h { font-size:10px; }
 }
 @media (max-width:768px) {
-  .gantt-legend { gap:10px; padding:10px 12px; font-size:11px; }
-  .gt .g-n, .gt .g-p, .gt .g-hm.g-hn, .gt .g-h.g-hn { min-width:180px; max-width:200px; padding:6px 8px; font-size:11px; }
-  .gt .g-w { width:38px; min-width:38px; }
-  .gt .g-hm { font-size:11px; padding:8px 2px; }
-  .gt .g-h { font-size:9px; }
-  .gt .g-wbs { font-size:9px; padding:1px 3px; }
+  .gantt-toolbar { padding:8px 12px; font-size:11px; }
+  .gt .g-n, .gt .g-hq.g-hn, .gt .g-hm.g-hn { min-width:200px; max-width:220px; padding:4px 8px; font-size:11px; }
+  .gt .g-w { width:36px; min-width:36px; }
 }
 
 /* Weekly */
@@ -764,52 +776,73 @@ function renderGantt(){
   for(let w=1;w<=TW;w++){
     const d=wsd(w);
     const e=new Date(d);e.setDate(d.getDate()+6);
-    weekInfo.push({w,start:d,end:e,month:d.getMonth()+1,startStr:fd(d),endStr:fd(e)});
+    const mNames=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    weekInfo.push({w,start:d,end:e,month:d.getMonth()+1,monthName:mNames[d.getMonth()+1],startStr:fd(d),endStr:fd(e)});
   }
+
+  // 월별 그룹
   const monthGroups=[];
   let cm=null,cc=0;
   weekInfo.forEach(wi=>{
-    if(wi.month!==cm){if(cm!==null)monthGroups.push({month:cm,count:cc});cm=wi.month;cc=1;}else cc++;
+    if(wi.month!==cm){if(cm!==null)monthGroups.push({month:cm,name:weekInfo.find(x=>x.month===cm).monthName,count:cc});cm=wi.month;cc=1;}else cc++;
   });
-  if(cm!==null)monthGroups.push({month:cm,count:cc});
+  if(cm!==null)monthGroups.push({month:cm,name:weekInfo.find(x=>x.month===cm).monthName,count:cc});
 
-  const mbWeeks=new Set();
-  let wi=1;
-  monthGroups.forEach((mg,i)=>{if(i>0)mbWeeks.add(wi);wi+=mg.count;});
+  // 분기별 그룹
+  const quarterGroups=[];
+  let cq=null, qc=0;
+  weekInfo.forEach(wi=>{
+    const q=Math.ceil(wi.month/3);
+    if(q!==cq){if(cq!==null)quarterGroups.push({q:cq,count:qc});cq=q;qc=1;}else qc++;
+  });
+  if(cq!==null)quarterGroups.push({q:cq,count:qc});
 
-  const mc={'4':'#eff6ff','5':'#f0fdf4','6':'#fefce8','7':'#fff7ed','8':'#fdf2f8','9':'#f5f3ff','10':'#ecfeff'};
+  // 월 경계 주차
+  const mbWeeks=new Set(), qbWeeks=new Set();
+  let wIdx=1;
+  monthGroups.forEach((mg,i)=>{if(i>0)mbWeeks.add(wIdx);wIdx+=mg.count;});
+  wIdx=1;
+  quarterGroups.forEach((qg,i)=>{if(i>0)qbWeeks.add(wIdx);wIdx+=qg.count;});
 
-  // 트리 구성
+  // 트리
   const tree=buildWbsTree(curIssues);
   const flatNodes=flattenTree(tree);
 
-  let h=`<div class="gantt-legend">
-    <span><div class="gl-box" style="background:#3b82f6"></div>완료</span>
-    <span><div class="gl-box" style="background:#3b82f6;opacity:.7"></div>진행/검토</span>
-    <span><div class="gl-box" style="background:#3b82f6;opacity:.35"></div>대기</span>
-    <span><div class="gl-box" style="background:#fffbe6;border:1px solid #fbbf24"></div>오늘 <strong>W${todayW||'-'}</strong></span>
-    <span style="font-size:11px;color:var(--text-muted)">▶ 클릭하여 접기/펼치기</span>
-    <span style="margin-left:auto;font-size:11px;color:var(--text-muted);font-weight:400">W1=4/2 | 총 ${TW}주 | 스냅샷: <strong>${selectedSnapDate}</strong></span>
+  // 상태별 바 색상 (Jira 스타일)
+  const barStyles={
+    done:{bg:'#4285f4',opacity:1},
+    doing:{bg:'#4285f4',opacity:0.75},
+    review:{bg:'#fbbc04',opacity:0.85},
+    todo:{bg:'#c4d4e8',opacity:0.7}
+  };
+
+  // 툴바
+  let h=`<div class="gantt-toolbar">
+    <span><div class="gl-box" style="background:#4285f4"></div>완료</span>
+    <span><div class="gl-box" style="background:#4285f4;opacity:.75"></div>진행</span>
+    <span><div class="gl-box" style="background:#fbbc04"></div>검토</span>
+    <span><div class="gl-box" style="background:#c4d4e8"></div>대기</span>
+    <span><div style="width:2px;height:12px;background:#4285f4;border-radius:1px"></div>오늘 W${todayW||'-'}</span>
+    <span style="font-size:11px;color:var(--text-muted)">▶ 접기/펼치기</span>
+    <span style="margin-left:auto;font-size:11px;color:var(--text-muted)">W1=4/2 | ${TW}주 | ${selectedSnapDate}</span>
   </div><table class="gt"><thead>`;
 
-  // 월 헤더
-  h+='<tr><th class="g-hm g-hn">WBS 코드 / 제목</th>';
-  monthGroups.forEach(mg=>{
-    h+=`<th class="g-hm" colspan="${mg.count}" style="background:${mc[mg.month]||'#f8fafc'};color:var(--text);border-left:2px solid #475569">${mg.month}월</th>`;
+  // Row 1: 분기 (Q1 ~ Q4)
+  h+='<tr><th class="g-hq g-hn" rowspan="2" style="vertical-align:middle;font-size:12px;color:var(--text-sub)">WBS / 작업명</th>';
+  quarterGroups.forEach(qg=>{
+    h+=`<th class="g-hq" colspan="${qg.count}" style="border-left:2px solid var(--border-strong)">Q${qg.q}</th>`;
   });
   h+='</tr>';
 
-  // 주차 헤더
-  h+='<tr><th class="g-h g-hn"></th>';
-  for(let w=1;w<=TW;w++){
-    const wk=weekInfo[w-1];
-    const isTd=w===todayW, isMb=mbWeeks.has(w);
-    const cls=['g-h','g-w',isTd?'g-today-col':'',isMb?'g-month-border':''].filter(Boolean).join(' ');
-    h+=`<th class="${cls}" title="W${w}: ${wk.startStr}~${wk.endStr}"><div>W${w}</div><div class="g-h-dt">${wk.startStr}</div></th>`;
-  }
+  // Row 2: 월
+  h+='<tr>';
+  monthGroups.forEach((mg,mi)=>{
+    const bl=mi>0?'border-left:1px solid var(--border-strong);':'';
+    h+=`<th class="g-hm" colspan="${mg.count}" style="${bl}">${mg.month}월</th>`;
+  });
   h+='</tr></thead><tbody>';
 
-  // 각 노드 렌더링
+  // 각 노드
   flatNodes.forEach(node=>{
     const i=node.issue;
     const code=node.code;
@@ -818,50 +851,59 @@ function renderGantt(){
     const phaseIdx=code.split('.')[0];
     const phaseColor=(PM[phaseIdx]||{c:'#64748b'}).c;
 
-    // 부모 코드 추적 (접기용 data 속성)
     const ancestors=[];
     const parts=code.split('.');
     for(let d=1;d<parts.length;d++) ancestors.push(parts.slice(0,d).join('.'));
-    const ancestorAttr=ancestors.length?` data-parents="${ancestors.join(',')}"`:'';;
+    const ancestorAttr=ancestors.length?` data-parents="${ancestors.join(',')}"`:'';
 
-    // 범위/상태 계산
-    const treeNode=hasChildren ? (function findNode(nodes,c){for(const n of nodes){if(n.code===c)return n;const f=findNode(n.children,c);if(f)return f;}return null;})(tree,code) : null;
+    const treeNode=hasChildren?(function fn(ns,c){for(const n of ns){if(n.code===c)return n;const f=fn(n.children,c);if(f)return f;}return null;})(tree,code):null;
     const range=treeNode?getTreeRange(treeNode):{sw:d2w(i.start_date)||1,ew:d2w(i.due_date)||(d2w(i.start_date)||1)};
     const stats=treeNode?getTreeStats(treeNode):{total:1,done:i.status_wbs==='done'?1:0,doing:0};
     const pct=stats.total?(stats.done/stats.total*100).toFixed(0):0;
 
     const lvCls=`g-lv${Math.min(depth,3)}`;
-    const toggle=hasChildren?`<span class="g-toggle" data-code="${code}" onclick="toggleGantt(event,'${code}')">▼</span>`:`<span class="g-toggle"></span>`;
+    const toggle=hasChildren?`<span class="g-toggle" data-code="${code}" onclick="toggleGantt(event,'${code}')">▼</span>`:'';
+    const statusBadge=badge(i.status_wbs);
 
-    // 셀 내용
-    const nameContent=depth<=1
-      ? `${toggle}<span class="g-wbs">${code}</span><strong style="color:${phaseColor}">${i.summary}</strong><span class="g-p-sub">${stats.total}건 · ${pct}% ${badge(i.status_wbs)}</span>`
-      : `${toggle}<span class="g-wbs">${code}</span>${i.summary} ${badge(i.status_wbs)}`;
+    let nameContent;
+    if(depth===0){
+      nameContent=`${toggle}<span class="g-wbs">${code}</span><strong>${i.summary}</strong><span class="g-p-sub">${stats.total}건 ${pct}%</span>`;
+    }else if(depth===1){
+      nameContent=`${toggle}<span class="g-wbs">${code}</span><strong style="font-weight:600">${i.summary}</strong><span class="g-p-sub">${statusBadge} ${stats.total>1?stats.total+'건':''}</span>`;
+    }else{
+      nameContent=`${toggle}<span class="g-wbs">${code}</span>${i.summary} ${statusBadge}`;
+    }
 
-    // 행 시작
     const rowClick=hasChildren?'':`onclick="showDetail('${i.key}')"`;
     h+=`<tr class="g-tree-row" data-code="${code}" data-depth="${depth}"${ancestorAttr} style="cursor:pointer" ${rowClick}>`;
     h+=`<td class="g-n ${lvCls}">${nameContent}</td>`;
 
-    // 바 렌더링
     const sw=range.sw, ew=range.ew;
+    const barSpan=ew-sw+1;
+
     for(let w=1;w<=TW;w++){
-      const cls=[(w===todayW?'g-today-col':''),(mbWeeks.has(w)?'g-month-border':'')].filter(Boolean).join(' ');
+      const isTd=w===todayW;
+      const isMb=mbWeeks.has(w);
+      const isQb=qbWeeks.has(w);
+      const cls=[isTd?'g-today-col':'',isQb?'g-quarter-border':isMb?'g-month-border':''].filter(Boolean).join(' ');
+
       if(w>=sw&&w<=ew){
-        const isS=w===sw,isE=w===ew;
-        const rad=isS&&isE?'5px':isS?'5px 0 0 5px':isE?'0 5px 5px 0':'0';
-        let bh,bm,color,opacity,sh='';
+        const isS=w===sw, isE=w===ew;
+        const rad=isS&&isE?'4px':isS?'4px 0 0 4px':isE?'0 4px 4px 0':'0';
+
+        let bh,bg,opacity;
         if(depth===0){
-          bh=8;bm=12;color=phaseColor;opacity=0.25;
+          bh=6;bg=phaseColor;opacity=0.3;
         }else if(depth===1 && hasChildren){
-          bh=10;bm=10;color=phaseColor;opacity=0.4;
+          bh=10;bg=phaseColor;opacity=0.5;
         }else{
-          const bc=barColor(phaseColor,i.status_wbs);
-          color=bc.color;opacity=bc.opacity;
-          bh=i.status_wbs==='done'?16:14;bm=i.status_wbs==='done'?7:8;
-          sh=i.status_wbs==='done'?'box-shadow:0 1px 3px rgba(0,0,0,.15);':'';
+          const bs=barStyles[i.status_wbs]||barStyles.todo;
+          bh=20;bg=bs.bg;opacity=bs.opacity;
         }
-        h+=`<td${cls?' class="'+cls+'"':''} style="padding:0"><div style="height:${bh}px;margin:${bm}px 2px;background:${color};opacity:${opacity};border-radius:${rad};${sh}"></div></td>`;
+
+        const showLabel=isS&&barSpan>=3&&depth>=2;
+        const labelHtml=showLabel?`<span class="g-bar-label">${i.summary}</span>`:'';
+        h+=`<td${cls?' class="'+cls+'"':''} style="padding:0"><div class="g-bar" style="height:${bh}px;margin:${depth<2?(32-bh)/2:5}px 1px;background:${bg};opacity:${opacity};border-radius:${rad}">${labelHtml}</div></td>`;
       }else{
         h+=`<td${cls?' class="'+cls+'"':''}></td>`;
       }
