@@ -54,6 +54,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sa
 .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px; text-align:center; box-shadow:var(--shadow); }
 .card .value { font-size:24px; font-weight:700; margin:4px 0 2px; line-height:1; }
 .card .label { font-size:10px; color:var(--text-muted); }
+.card[data-filter], .ac[data-filter] { cursor:pointer; transition:all .15s; }
+.card[data-filter]:hover, .ac[data-filter]:hover { border-color:var(--primary); transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,.1); }
+.card[data-filter].selected, .ac[data-filter].selected { border-color:var(--primary); box-shadow:0 0 0 2px var(--primary-light); }
+.drill-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.drill-close { background:none; border:1px solid var(--border); border-radius:6px; padding:4px 12px; font-size:11px; cursor:pointer; color:var(--text-sub); }
+.drill-close:hover { background:var(--surface-alt); }
 
 /* Phase bars */
 .phase-row { display:flex; align-items:center; margin-bottom:7px; }
@@ -302,6 +308,7 @@ tr:hover td { background:#f8faff; }
       <div class="chart-box"><div class="section-title">상태 분포</div><canvas id="statusChart"></canvas></div>
       <div class="chart-box"><div class="section-title">업무영역별 이슈 수</div><canvas id="areaChart"></canvas></div>
     </div>
+    <div id="overviewDrill" style="display:none"></div>
   </div>
   <div class="tab-panel" id="panel-weekly">
     <div id="weeklyContent"><div class="msg">로딩 중...</div></div>
@@ -484,7 +491,7 @@ function renderOverview(){
   document.getElementById('areaCards').innerHTML=Object.entries(AC).map(([name,color])=>{
     const s=areaStats[name]||{tot:0,done:0,doing:0,review:0};
     const p=s.tot?(s.done/s.tot*100).toFixed(0):0;
-    return `<div class="ac" style="--ac-color:${color};border-color:${color}22">
+    return `<div class="ac" data-filter="area:${name}" style="--ac-color:${color};border-color:${color}22;cursor:pointer" onclick="drillDown('area:${name}')">
       <div class="ac-label">${name}</div>
       <div class="ac-pct">${p}%</div>
       <div class="ac-counts">${s.done}/${s.tot} 완료 · 진행 ${s.doing} · 검토 ${s.review}</div>
@@ -493,11 +500,11 @@ function renderOverview(){
   }).join('');
 
   document.getElementById('overviewCards').innerHTML=`
-    <div class="card"><div class="label">전체 이슈</div><div class="value" style="color:var(--primary)">${tot}</div></div>
-    <div class="card"><div class="label">완료</div><div class="value" style="color:var(--green)">${done}</div><div class="label">${pct}%</div></div>
-    <div class="card"><div class="label">진행</div><div class="value" style="color:#2196F3">${doing}</div></div>
-    <div class="card"><div class="label">검토</div><div class="value" style="color:var(--amber)">${review}</div></div>
-    <div class="card"><div class="label">대기</div><div class="value" style="color:var(--gray)">${todo}</div></div>
+    <div class="card" data-filter="all" onclick="drillDown('all')"><div class="label">전체 이슈</div><div class="value" style="color:var(--primary)">${tot}</div></div>
+    <div class="card" data-filter="done" onclick="drillDown('done')"><div class="label">완료</div><div class="value" style="color:var(--green)">${done}</div><div class="label">${pct}%</div></div>
+    <div class="card" data-filter="doing" onclick="drillDown('doing')"><div class="label">진행</div><div class="value" style="color:#2196F3">${doing}</div></div>
+    <div class="card" data-filter="review" onclick="drillDown('review')"><div class="label">검토</div><div class="value" style="color:var(--amber)">${review}</div></div>
+    <div class="card" data-filter="todo" onclick="drillDown('todo')"><div class="label">대기</div><div class="value" style="color:var(--gray)">${todo}</div></div>
     <div class="card"><div class="label">경과 주차</div><div class="value" style="font-size:18px">W${elapsedW}<span style="font-size:12px;color:var(--text-muted)">/${TW}</span></div><div class="label">잔여 ${remaining}일</div></div>`;
 
   document.getElementById('phaseBarList').innerHTML=Object.entries(PM).map(([p,v])=>{
@@ -1057,6 +1064,63 @@ function showDetail(key){
   </div><a href="${JB}/browse/${i.key}" target="_blank" style="color:var(--primary);font-size:12px;font-weight:500">Jira에서 보기 →</a>`;
   document.getElementById('modalOverlay').classList.add('show');
 }
+// === Drill-down (카드 클릭 시 하단 이슈 목록) ===
+function drillDown(filter){
+  const wrap=document.getElementById('overviewDrill');
+  const SL_FULL={todo:'대기',doing:'진행',review:'검토',done:'완료'};
+
+  // 선택 표시 토글
+  document.querySelectorAll('[data-filter]').forEach(el=>el.classList.remove('selected'));
+  const sel=document.querySelector(`[data-filter="${filter}"]`);
+  if(sel) sel.classList.add('selected');
+
+  // 필터링
+  let filtered=curIssues;
+  let title='';
+  if(filter==='all'){
+    title='전체 이슈';
+  }else if(filter.startsWith('area:')){
+    const aName=filter.split(':')[1];
+    filtered=curIssues.filter(i=>area(i)===aName);
+    title=`${aName} 영역 이슈`;
+  }else{
+    filtered=curIssues.filter(i=>i.status_wbs===filter);
+    title=`${SL_FULL[filter]||filter} 상태 이슈`;
+  }
+  filtered.sort((a,b)=>(wbs(a)||'').localeCompare(wbs(b)||'',undefined,{numeric:true}));
+
+  let h=`<div class="tbl-wrap" style="margin-top:16px">
+    <div class="drill-header">
+      <div class="section-title">${title} <span class="section-sub">(${filtered.length}건)</span></div>
+      <button class="drill-close" onclick="closeDrill()">닫기 ✕</button>
+    </div>
+    <table><thead><tr><th>KEY</th><th>WBS</th><th>제목</th><th>페이즈</th><th>영역</th><th>담당자</th><th>시작일</th><th>종료일</th><th>상태</th></tr></thead>
+    <tbody>`;
+  filtered.forEach(i=>{
+    h+=`<tr style="cursor:pointer" onclick="showDetail('${i.key}')">
+      <td><a href="${JB}/browse/${i.key}" target="_blank" style="color:var(--primary);text-decoration:none;font-weight:600">${i.key}</a></td>
+      <td style="font-family:monospace;font-size:10px;color:var(--text-muted)">${wbs(i)||''}</td>
+      <td>${i.summary}</td>
+      <td>${pName(i)}</td>
+      <td>${area(i)}</td>
+      <td>${i.assignee||'-'}</td>
+      <td style="font-size:10px">${i.start_date||'-'}</td>
+      <td style="font-size:10px">${i.due_date||'-'}</td>
+      <td>${badge(i.status_wbs)}</td>
+    </tr>`;
+  });
+  h+='</tbody></table></div>';
+  wrap.innerHTML=h;
+  wrap.style.display='block';
+  wrap.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function closeDrill(){
+  const wrap=document.getElementById('overviewDrill');
+  wrap.style.display='none';
+  wrap.innerHTML='';
+  document.querySelectorAll('[data-filter]').forEach(el=>el.classList.remove('selected'));
+}
+
 function closeModal(){document.getElementById('modalOverlay').classList.remove('show');}
 document.getElementById('modalOverlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
 
