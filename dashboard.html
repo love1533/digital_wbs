@@ -398,7 +398,29 @@ const AC={'이지원':'#3b82f6','인터넷웹':'#7c3aed','콜센터':'#10b981','
 
 let allSnapshots={}, curIssues=[], latestSnap=null, selectedSnapDate=null, snapshotDates=[];
 
-function wbs(i){const l=(i.labels||[]).find(x=>x.startsWith('WBS_'));return l?l.replace('WBS_','').replace(/_/g,'.'):null;}
+function wbs(i){
+  const l=(i.labels||[]).find(x=>x.startsWith('WBS_'));
+  if(l) return l.replace('WBS_','').replace(/_/g,'.');
+  // summary 패턴: "Project 1.1.1_..." 또는 "Project_1_1_1_..."
+  const s=i.summary||'';
+  let m=s.match(/^Project\s+([\d.]+)/);
+  if(m) return m[1];
+  m=s.match(/^Project_(\d+(?:_\d+)*)/);
+  if(m) return m[1].replace(/_/g,'.');
+  return null;
+}
+// summary에서 WBS 코드/페이즈 접두어 제거한 깔끔한 작업명
+function cleanSummary(i){
+  const s=i.summary||'';
+  // "Project 1.1.1_사업관리 (전기간)_킥오프 미팅·착수보고" → 마지막 _ 뒤
+  let m=s.match(/^Project\s+[\d.]+_(.+)$/);
+  if(m){
+    // 두 토큰 이상이면 마지막 토큰만, 아니면 전체
+    const parts=m[1].split('_');
+    return parts.length>1?parts[parts.length-1].trim():m[1].trim();
+  }
+  return s;
+}
 function pn(i){const c=wbs(i);return c?c.split('.')[0]:null;}
 function pName(i){const p=pn(i);return p&&PM[p]?PM[p].n:'기타';}
 function area(i){const t=[i.summary,...(i.labels||[])].join(' ').toLowerCase();for(const[a,ks]of Object.entries(AKW)){if(ks.some(k=>t.includes(k)))return a;}return 'PMO';}
@@ -468,22 +490,12 @@ async function loadData(){
     latestSnap=snaps[0];
     switchSnapshot(latestSnap.date);
 
-    // WBS 계획 (Excel) 로드
-    try{
-      let pBase=base.replace('snapshots/','');
-      let pr=await fetch(pBase+'wbs_plan.json?'+Date.now());
-      if(pr.ok){
-        wbsPlan=await pr.json();
-        renderPlan();
-      }
-    }catch(_){}
   }catch(e){
     document.querySelector('.content').innerHTML=`<div class="msg error">${e.message}</div>`;
   }
 }
 
-let wbsPlan=null;
-function renderAll(){renderOverview();renderWeekly();renderGantt();renderPhaseDetail();renderTasks();if(wbsPlan)renderPlan();}
+function renderAll(){renderOverview();renderWeekly();renderGantt();renderPhaseDetail();renderTasks();renderPlan();}
 
 // === Overview ===
 let sc1=null,sc2=null;
@@ -1175,94 +1187,188 @@ function closeDrill(){
   document.querySelectorAll('[data-filter]').forEach(el=>el.classList.remove('selected'));
 }
 
-// === WBS 계획 (Excel 트리) ===
+// === WBS 계획 (Jira DA06 트리, 엑셀 양식 참고) ===
 function renderPlan(){
-  if(!wbsPlan){return;}
-  const m=wbsPlan.meta;
-  const tasks=wbsPlan.tasks;
+  if(!curIssues || !curIssues.length){
+    document.getElementById('planContent').innerHTML='<div class="msg">스냅샷 데이터가 없습니다.</div>';
+    return;
+  }
 
-  // 상태 판정 (실적 - 계획)
-  const diff=(m.overall_actual_pct - m.overall_plan_pct)*100;
-  const stCls=diff>=0?'pl-status-ahead':diff>=-5?'pl-status-ontrack':'pl-status-behind';
-  const stLabel=diff>=0?'양호':diff>=-5?'정상':'지연';
+  // 1) WBS 코드가 있는 이슈만 필터링하고 트리 구성
+  const issues=curIssues.filter(i=>wbs(i));
+  const today=new Date();
 
-  // 메타 카드
+  // 2) 진척률 계산
+  function calcPlanPct(i){
+    if(!i.start_date||!i.due_date) return 0;
+    const s=new Date(i.start_date), e=new Date(i.due_date);
+    if(today<s) return 0;
+    if(today>e) return 100;
+    const total=e-s;
+    if(total<=0) return 100;
+    return Math.round((today-s)/total*100);
+  }
+  function calcActPct(i){
+    const st=i.status_wbs;
+    if(st==='done') return 100;
+    if(st==='review') return 80;
+    if(st==='doing') return 50;
+    return 0;
+  }
+  function dayDuration(i){
+    if(!i.start_date||!i.due_date) return '';
+    const d=Math.round((new Date(i.due_date)-new Date(i.start_date))/86400000)+1;
+    return d>0?d+'일':'';
+  }
+
+  // 3) 트리 구성 (코드 기반)
+  const map={};
+  issues.forEach(i=>{
+    const c=wbs(i);
+    map[c]={code:c,issue:i,children:[]};
+  });
+  const roots=[];
+  Object.values(map).forEach(n=>{
+    const parts=n.code.split('.');
+    if(parts.length>1){
+      const pc=parts.slice(0,-1).join('.');
+      if(map[pc]) map[pc].children.push(n);
+      else roots.push(n);
+    } else roots.push(n);
+  });
+  function sortT(ns){
+    ns.sort((a,b)=>a.code.localeCompare(b.code,undefined,{numeric:true}));
+    ns.forEach(x=>sortT(x.children));
+  }
+  sortT(roots);
+
+  // 4) 자식 진척률 합계 (가중평균: depth 0/1은 자식 평균)
+  function aggregate(n){
+    if(n.children.length===0){
+      const i=n.issue;
+      n.planPct=calcPlanPct(i);
+      n.actPct=calcActPct(i);
+      n.startDate=i.start_date||'';
+      n.endDate=i.due_date||'';
+      return {p:n.planPct, a:n.actPct, c:1};
+    }
+    let pSum=0,aSum=0,cSum=0;
+    let minStart='', maxEnd='';
+    n.children.forEach(c=>{
+      const r=aggregate(c);
+      pSum+=r.p*r.c; aSum+=r.a*r.c; cSum+=r.c;
+      if(c.startDate && (!minStart||c.startDate<minStart)) minStart=c.startDate;
+      if(c.endDate && (!maxEnd||c.endDate>maxEnd)) maxEnd=c.endDate;
+    });
+    n.planPct=cSum?Math.round(pSum/cSum):0;
+    n.actPct=cSum?Math.round(aSum/cSum):0;
+    n.startDate=minStart||n.issue.start_date||'';
+    n.endDate=maxEnd||n.issue.due_date||'';
+    return {p:n.planPct, a:n.actPct, c:cSum};
+  }
+  roots.forEach(aggregate);
+
+  // 5) 전체 메타 (모든 leaf 평균)
+  const leaves=[];
+  function collectLeaves(ns){
+    ns.forEach(n=>{
+      if(n.children.length===0) leaves.push(n);
+      else collectLeaves(n.children);
+    });
+  }
+  collectLeaves(roots);
+  const overallPlan=leaves.length?leaves.reduce((s,n)=>s+n.planPct,0)/leaves.length:0;
+  const overallAct=leaves.length?leaves.reduce((s,n)=>s+n.actPct,0)/leaves.length:0;
+  const diff=overallAct-overallPlan;
+  const sigCls=diff>=0?'pl-status-ahead':diff>=-5?'pl-status-ontrack':'pl-status-behind';
+  const sigLabel=diff>=0?'양호':diff>=-5?'정상':'지연';
+
+  // 6) 플랫 배열로 전개
+  const flat=[];
+  function flatten(ns,depth){
+    ns.forEach(n=>{
+      flat.push({...n,depth,hasChildren:n.children.length>0});
+      if(n.children.length>0) flatten(n.children,depth+1);
+    });
+  }
+  flatten(roots,0);
+
+  // 7) 상태 분포
+  const statusCounts={done:0,doing:0,review:0,todo:0};
+  leaves.forEach(n=>{statusCounts[n.issue.status_wbs]=(statusCounts[n.issue.status_wbs]||0)+1;});
+
+  // 8) 메타 카드
   let h=`<div class="plan-meta">
-    <div class="pm-card"><div class="pm-label">프로젝트</div><div class="pm-val" style="font-size:14px;font-weight:600">${m.project}</div><div class="pm-sub">${m.source}</div></div>
-    <div class="pm-card"><div class="pm-label">기준일</div><div class="pm-val" style="font-size:16px">${m.base_date}</div></div>
-    <div class="pm-card"><div class="pm-label">계획 진척률</div><div class="pm-val" style="color:#2563eb">${(m.overall_plan_pct*100).toFixed(1)}%</div></div>
-    <div class="pm-card"><div class="pm-label">실적 진척률</div><div class="pm-val" style="color:#16a34a">${(m.overall_actual_pct*100).toFixed(1)}%</div></div>
-    <div class="pm-card"><div class="pm-label">진척 신호</div><div class="pm-val ${stCls}">${stLabel} ${diff>=0?'+':''}${diff.toFixed(1)}%p</div><div class="pm-sub">실적 - 계획 차이</div></div>
-    <div class="pm-card"><div class="pm-label">전체 작업</div><div class="pm-val">${tasks.length}<span style="font-size:11px;color:var(--text-muted)">건</span></div></div>
+    <div class="pm-card"><div class="pm-label">프로젝트</div><div class="pm-val" style="font-size:14px;font-weight:600">디지털고도화 구축</div><div class="pm-sub">DA06 · ${selectedSnapDate} 스냅샷</div></div>
+    <div class="pm-card"><div class="pm-label">기준일</div><div class="pm-val" style="font-size:16px">${today.toISOString().slice(0,10)}</div></div>
+    <div class="pm-card"><div class="pm-label">계획 진척률</div><div class="pm-val" style="color:#2563eb">${overallPlan.toFixed(1)}%</div><div class="pm-sub">기간 경과 기준</div></div>
+    <div class="pm-card"><div class="pm-label">실적 진척률</div><div class="pm-val" style="color:#16a34a">${overallAct.toFixed(1)}%</div><div class="pm-sub">상태 기반</div></div>
+    <div class="pm-card"><div class="pm-label">진척 신호</div><div class="pm-val ${sigCls}">${sigLabel} ${diff>=0?'+':''}${diff.toFixed(1)}%p</div><div class="pm-sub">실적 - 계획</div></div>
+    <div class="pm-card"><div class="pm-label">전체 작업</div><div class="pm-val">${leaves.length}<span style="font-size:11px;color:var(--text-muted)">건</span></div><div class="pm-sub">완료${statusCounts.done} 진행${statusCounts.doing} 검토${statusCounts.review} 대기${statusCounts.todo}</div></div>
   </div>`;
 
-  // 필터
+  // 9) 필터
   h+=`<div class="plan-filters">
     <button class="pill-btn active" data-pf="all" onclick="filterPlan('all')">전체</button>
     <button class="pill-btn" data-pf="behind" onclick="filterPlan('behind')">지연</button>
     <button class="pill-btn" data-pf="active" onclick="filterPlan('active')">진행중</button>
     <button class="pill-btn" data-pf="todo" onclick="filterPlan('todo')">미착수</button>
     <button class="pill-btn" data-pf="done" onclick="filterPlan('done')">완료</button>
-    <input type="text" id="planSearch" placeholder="작업명/요구사항 검색" oninput="filterPlanSearch(this.value)" style="margin-left:auto;padding:5px 10px;border:1px solid var(--border);border-radius:6px;font-size:11px">
+    <input type="text" id="planSearch" placeholder="WBS코드/작업명/담당자 검색" oninput="filterPlanSearch(this.value)" style="margin-left:auto;padding:5px 10px;border:1px solid var(--border);border-radius:6px;font-size:11px;min-width:220px">
   </div>`;
 
-  // 테이블
+  // 10) 테이블
   h+=`<div class="plan-tbl-wrap"><table class="plan-tbl">
     <thead><tr>
-      <th style="min-width:80px">WBS</th>
+      <th style="min-width:90px">WBS</th>
       <th class="pl-name">작업명</th>
+      <th class="center" style="width:80px">Jira KEY</th>
       <th class="center" style="width:60px">기간</th>
-      <th class="center" style="width:90px">계획 시작</th>
-      <th class="center" style="width:90px">계획 종료</th>
-      <th class="center" style="width:80px">담당자</th>
-      <th class="center" style="width:140px">요구사항</th>
+      <th class="center" style="width:90px">시작일</th>
+      <th class="center" style="width:90px">종료일</th>
+      <th class="center" style="width:120px">담당자</th>
       <th class="center pl-pct-cell">계획 %</th>
       <th class="center pl-pct-cell">실적 %</th>
       <th class="center" style="width:80px">상태</th>
     </tr></thead><tbody>`;
 
-  tasks.forEach(t=>{
-    const dep=t.depth||0;
-    const planPct=(t.plan_pct||0)*100;
-    const actPct=(t.actual_pct==null)?null:t.actual_pct*100;
-    const tDiff=actPct==null?null:actPct-planPct;
-    let tStCls='', tStLabel='-';
-    if(actPct==null){tStLabel='미착수';}
-    else if(actPct>=99){tStCls='pl-status-ahead';tStLabel='완료';}
-    else if(tDiff>=0){tStCls='pl-status-ahead';tStLabel='양호';}
-    else if(tDiff>=-5){tStCls='pl-status-ontrack';tStLabel='정상';}
-    else {tStCls='pl-status-behind';tStLabel='지연';}
+  flat.forEach(node=>{
+    const i=node.issue;
+    const dep=node.depth;
+    const planPct=node.planPct;
+    const actPct=node.actPct;
+    const tDiff=actPct-planPct;
+    let stCls='', stLabel;
+    const isLeaf=!node.hasChildren;
+    if(isLeaf && i.status_wbs==='done'){stCls='pl-status-ahead';stLabel='완료';}
+    else if(isLeaf && i.status_wbs==='todo' && actPct===0){stLabel='미착수';}
+    else if(tDiff>=0){stCls='pl-status-ahead';stLabel='양호';}
+    else if(tDiff>=-5){stCls='pl-status-ontrack';stLabel='정상';}
+    else {stCls='pl-status-behind';stLabel='지연';}
 
-    // 부모 코드 (접기용)
-    const parts=t.wbs.split('.');
+    const parts=node.code.split('.');
     const ancestors=[];
-    for(let i=1;i<parts.length;i++) ancestors.push(parts.slice(0,i).join('.'));
+    for(let k=1;k<parts.length;k++) ancestors.push(parts.slice(0,k).join('.'));
     const ancAttr=ancestors.length?` data-pl-parents="${ancestors.join(',')}"`:'';
 
-    // 다음 행이 자식인지
-    const hasChildren=tasks.some(o=>{
-      const op=o.wbs.split('.');
-      return op.length===parts.length+1 && o.wbs.startsWith(t.wbs+'.');
-    });
-    const toggle=hasChildren?`<span class="pl-toggle" onclick="togglePlan(event,'${t.wbs}')">▼</span>`:`<span class="pl-toggle"></span>`;
-
-    // 진척 바 색상
-    const planFillColor='#94a3b8';
-    const actFillColor=actPct==null?'#cbd5e1':(actPct>=99?'#16a34a':actPct>=planPct?'#2563eb':'#dc2626');
-
+    const toggle=node.hasChildren?`<span class="pl-toggle" onclick="togglePlan(event,'${node.code}')">▼</span>`:`<span class="pl-toggle"></span>`;
+    const planFill='#94a3b8';
+    const actFill=actPct>=99?'#16a34a':actPct>=planPct?'#2563eb':actPct===0?'#cbd5e1':'#dc2626';
     const indentCls=dep>=1?`pl-indent-${Math.min(dep,3)}`:'';
+    const rowClick=isLeaf?`onclick="showDetail('${i.key}')" style="cursor:pointer"`:'';
+    const taskName=cleanSummary(i);
 
-    h+=`<tr class="lv${Math.min(dep,3)}" data-pl-code="${t.wbs}" data-pl-status="${tStLabel}"${ancAttr}>
-      <td><span class="pl-wbs">${t.wbs}</span></td>
-      <td class="pl-name ${indentCls}">${toggle}${t.name}</td>
-      <td class="pl-dur">${t.duration}</td>
-      <td class="pl-date">${t.plan_start}</td>
-      <td class="pl-date">${t.plan_end}</td>
-      <td class="center">${t.owner?`<span class="pl-owner">${t.owner}</span>`:'-'}</td>
-      <td><span class="pl-req">${t.req_id||'-'}</span></td>
-      <td><div class="pl-pct-bar"><div class="pl-pct-track"><div class="pl-pct-fill" style="width:${planPct}%;background:${planFillColor}"></div></div><span class="pl-pct-num">${planPct.toFixed(0)}%</span></div></td>
-      <td><div class="pl-pct-bar"><div class="pl-pct-track"><div class="pl-pct-fill" style="width:${actPct||0}%;background:${actFillColor}"></div></div><span class="pl-pct-num">${actPct==null?'-':actPct.toFixed(0)+'%'}</span></div></td>
-      <td class="center ${tStCls}" style="font-weight:600;font-size:11px">${tStLabel}</td>
+    h+=`<tr class="lv${Math.min(dep,3)}" data-pl-code="${node.code}" data-pl-status="${stLabel}"${ancAttr} ${rowClick}>
+      <td><span class="pl-wbs">${node.code}</span></td>
+      <td class="pl-name ${indentCls}">${toggle}${taskName}</td>
+      <td class="center"><a href="${JB}/browse/${i.key}" target="_blank" onclick="event.stopPropagation()" style="color:var(--primary);text-decoration:none;font-weight:600;font-size:10px">${i.key}</a></td>
+      <td class="pl-dur">${dayDuration(i)}</td>
+      <td class="pl-date">${node.startDate||'-'}</td>
+      <td class="pl-date">${node.endDate||'-'}</td>
+      <td class="center">${i.assignee?`<span class="pl-owner">${i.assignee}</span>`:'-'}</td>
+      <td><div class="pl-pct-bar"><div class="pl-pct-track"><div class="pl-pct-fill" style="width:${planPct}%;background:${planFill}"></div></div><span class="pl-pct-num">${planPct}%</span></div></td>
+      <td><div class="pl-pct-bar"><div class="pl-pct-track"><div class="pl-pct-fill" style="width:${actPct}%;background:${actFill}"></div></div><span class="pl-pct-num">${actPct}%</span></div></td>
+      <td class="center ${stCls}" style="font-weight:600;font-size:11px">${stLabel}</td>
     </tr>`;
   });
   h+='</tbody></table></div>';
