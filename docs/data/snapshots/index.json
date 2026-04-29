@@ -1,12 +1,12 @@
 {
-  "project_key": "GCGF0323",
+  "project_key": "DA06",
   "jira_url": "https://gcgfmobile.atlassian.net",
   "snapshots": [
     {
       "date": "2026-04-29",
-      "count": 364,
+      "count": 143,
       "file": "2026-04-29.json",
-      "updated_at": "2026-04-29T02:44:35.424661"
+      "updated_at": "2026-04-29T09:01:39.383236"
     },
     {
       "date": "2026-04-28",
