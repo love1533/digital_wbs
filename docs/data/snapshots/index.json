@@ -3,6 +3,12 @@
   "jira_url": "https://gcgfmobile.atlassian.net",
   "snapshots": [
     {
+      "date": "2026-08-15",
+      "count": 0,
+      "file": "2026-08-15.json",
+      "updated_at": "2026-08-15T01:05:05.224257"
+    },
+    {
       "date": "2026-08-14",
       "count": 0,
       "file": "2026-08-14.json",
